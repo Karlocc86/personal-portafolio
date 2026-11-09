@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+build
+.vercel
+.env*
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+npm-debug.log*
+
+# Descargas de diseno y salidas de agentes (no son parte del proyecto)
+*.zip
+artifacts/

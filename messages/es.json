@@ -1,0 +1,141 @@
+{
+  "Metadata": {
+    "title": "Karlo Sebastián Cadena Cota | Ciencias de la Computación",
+    "description": "Estudiante de Ciencias de la Computación en el Tecnológico de Monterrey, enfocado en desarrollo full-stack y sistemas integrados con IA."
+  },
+  "Header": {
+    "skip": "Saltar al contenido",
+    "primaryNav": "Secciones",
+    "language": "Idioma",
+    "theme": "Cambiar entre modo claro y oscuro",
+    "nav": {
+      "about": "Sobre mí",
+      "tools": "Herramientas",
+      "education": "Educación",
+      "contact": "Contacto"
+    }
+  },
+  "Common": {
+    "newTab": "(se abre en una pestaña nueva)"
+  },
+  "Hero": {
+    "name": "Karlo Sebastián Cadena Cota",
+    "role": "Estudiante de Ciencias de la Computación",
+    "focus": "Desarrollo full-stack y sistemas integrados con IA",
+    "contact": "Contacto"
+  },
+  "Where": {
+    "label": "Sobre mí",
+    "intro": {
+      "title": "Hola, soy Karlo.",
+      "body": "Estudio Ciencias de la Computación y Tecnología y me enfoco en el desarrollo full-stack y en sistemas que integran inteligencia artificial."
+    },
+    "home": {
+      "eyebrow": "Origen",
+      "title": "Soy de {origin}."
+    },
+    "move": {
+      "eyebrow": "Hoy",
+      "title": "Estudio en Guadalajara, Jalisco.",
+      "body": "Ciencias de la Computación y Tecnología (ITC) en el Tecnológico de Monterrey, campus Guadalajara. Graduación esperada en julio de 2028."
+    },
+    "outro": {
+      "title": "De {town} a Guadalajara.",
+      "body": "Hablo español (nativo) e inglés (fluido)."
+    },
+    "origin": "Origen",
+    "school": "Universidad",
+    "schoolDetail": "Tec de Monterrey · Guadalajara",
+    "hint": "Selecciona un estado para alzarlo."
+  },
+  "Tools": {
+    "title": "Con qué trabajo.",
+    "lead": "Lenguajes, frameworks y servicios con los que construyo aplicaciones de principio a fin.",
+    "groups": {
+      "languages": {
+        "title": "Lenguajes",
+        "items": [
+          "C++",
+          "Python",
+          "TypeScript",
+          "SQL"
+        ]
+      },
+      "web": {
+        "title": "Web y Backend",
+        "items": [
+          "React",
+          "Next.js",
+          "Node.js",
+          "PostgreSQL",
+          "Prisma",
+          "Auth.js",
+          "REST APIs",
+          "Tailwind CSS",
+          "Vite"
+        ]
+      },
+      "cloud": {
+        "title": "Cloud y Servicios",
+        "items": [
+          "Supabase (Auth, Row Level Security)",
+          "Stripe",
+          "Vercel",
+          "GitHub Actions",
+          "Sentry",
+          "Gemini API"
+        ]
+      },
+      "tools": {
+        "title": "Herramientas",
+        "items": [
+          "Git",
+          "GitHub",
+          "Linux",
+          "Vitest",
+          "Android Studio",
+          "Chrome Extensions (MV3)"
+        ]
+      }
+    }
+  },
+  "Education": {
+    "title": "Educación y reconocimiento.",
+    "education": {
+      "label": "Educación",
+      "school": "Tecnológico de Monterrey",
+      "degree": "B.S. en Computer Science and Technology (ITC)",
+      "meta": "Campus Guadalajara · jul. 2028 (esperado)",
+      "coursesLabel": "Materias relevantes",
+      "courses": [
+        "Estructuras de Datos y Algoritmos Fundamentales",
+        "Construcción de Software y Toma de Decisiones",
+        "Programación Orientada a Objetos",
+        "Bases de Datos",
+        "Internet de las Cosas"
+      ]
+    },
+    "award": {
+      "label": "Reconocimiento",
+      "title": "Medalla de oro (1er lugar)",
+      "event": "Olimpiada Estatal de Física de Baja California Sur, 2022",
+      "description": "Integré la delegación estatal de cuatro personas en la XXXIII Olimpiada Nacional de Física en Puebla."
+    }
+  },
+  "Contact": {
+    "title": "Hablemos.",
+    "lead": "La forma más rápida de contactarme es por correo. También me encuentras en GitHub y LinkedIn."
+  },
+  "Footer": {
+    "copyright": "© 2026 kssc.tech"
+  },
+  "NotFound": {
+    "title": "Esta página no existe.",
+    "description": "Revisa la dirección o vuelve al inicio.",
+    "back": "Volver al inicio"
+  },
+  "Person": {
+    "jobTitle": "Estudiante de Ciencias de la Computación",
+    "award": "Medalla de oro (1er lugar), Olimpiada Estatal de Física de Baja California Sur, 2022"
+  }
+}
