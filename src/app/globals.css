@@ -1,0 +1,161 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --ease-apple: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.03), 0 12px 40px -12px rgb(0 0 0 / 0.12);
+  --color-accent: #0071e3;
+  --color-accent-hover: #0066cc;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-canvas-alt: var(--canvas-alt);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-link: var(--link);
+  --color-line: var(--line);
+}
+
+:root {
+  --canvas: #ffffff;
+  --canvas-alt: #f5f5f7;
+  --ink: #1d1d1f;
+  --ink-muted: #6e6e73;
+  --link: #0066cc;
+  --focus: #0071e3;
+  --glass: rgb(255 255 255 / 0.72);
+  --line: rgb(29 29 31 / 0.3);
+  --hero-glow: rgb(0 113 227 / 0.05);
+  --hairline: rgb(29 29 31 / 0.08);
+  color-scheme: light;
+}
+
+:root.dark {
+  --canvas: #000000;
+  --canvas-alt: #1d1d1f;
+  --ink: #f5f5f7;
+  --ink-muted: #a1a1a6;
+  --link: #2997ff;
+  --focus: #2997ff;
+  --glass: rgb(0 0 0 / 0.72);
+  --line: rgb(245 245 247 / 0.4);
+  --hero-glow: rgb(0 113 227 / 0.1);
+  --hairline: rgb(245 245 247 / 0.08);
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 3.5rem;
+    -webkit-text-size-adjust: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", var(--font-inter), "Helvetica Neue", Arial, sans-serif;
+  }
+
+  body {
+    background-color: var(--canvas);
+    color: var(--ink);
+    font-size: 17px;
+    line-height: 1.47;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: rgb(0 113 227 / 0.28);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 3px;
+  }
+}
+
+/* Barra de navegación translúcida (vidrio esmerilado) */
+.glass {
+  background-color: var(--glass);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+}
+
+/* Barra superior: transparente sobre el hero, vidrio esmerilado al hacer scroll */
+.site-header {
+  transition:
+    background-color 0.4s cubic-bezier(0.25, 0.1, 0.25, 1),
+    border-color 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.site-header[data-scrolled='true'] {
+  background-color: var(--glass);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom-color: var(--hairline);
+}
+
+@keyframes header-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.header-in {
+  animation: header-in 0.8s cubic-bezier(0.25, 0.1, 0.25, 1) 0.9s both;
+}
+
+/* Entrada escalonada del hero */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 0.6s cubic-bezier(0.25, 0.1, 0.25, 1) both;
+  animation-delay: var(--delay, 0ms);
+}
+
+/* Fade-in al hacer scroll (solo con JS activo; ver themeScript y RevealObserver) */
+.js [data-reveal] {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.6s cubic-bezier(0.25, 0.1, 0.25, 1),
+    transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition-delay: var(--delay, 0ms);
+}
+
+.js [data-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .rise,
+  .header-in {
+    animation: none;
+  }
+
+  .js [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

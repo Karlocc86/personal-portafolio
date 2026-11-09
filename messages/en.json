@@ -1,0 +1,141 @@
+{
+  "Metadata": {
+    "title": "Karlo Sebastián Cadena Cota | Computer Science",
+    "description": "Computer Science student at Tecnológico de Monterrey focused on full-stack development and AI-integrated systems."
+  },
+  "Header": {
+    "skip": "Skip to content",
+    "primaryNav": "Sections",
+    "language": "Language",
+    "theme": "Toggle light and dark mode",
+    "nav": {
+      "about": "About",
+      "tools": "Tools",
+      "education": "Education",
+      "contact": "Contact"
+    }
+  },
+  "Common": {
+    "newTab": "(opens in a new tab)"
+  },
+  "Hero": {
+    "name": "Karlo Sebastián Cadena Cota",
+    "role": "Computer Science Student",
+    "focus": "Full-stack development and AI-integrated systems",
+    "contact": "Contact"
+  },
+  "Where": {
+    "label": "About me",
+    "intro": {
+      "title": "Hi, I’m Karlo.",
+      "body": "I study Computer Science and Technology and focus on full-stack development and systems that integrate artificial intelligence."
+    },
+    "home": {
+      "eyebrow": "Origin",
+      "title": "I’m from {origin}."
+    },
+    "move": {
+      "eyebrow": "Today",
+      "title": "I study in Guadalajara, Jalisco.",
+      "body": "Computer Science and Technology (ITC) at Tecnológico de Monterrey, Guadalajara campus. Expected graduation: July 2028."
+    },
+    "outro": {
+      "title": "From {town} to Guadalajara.",
+      "body": "I speak Spanish (native) and English (fluent)."
+    },
+    "origin": "Origin",
+    "school": "University",
+    "schoolDetail": "Tec de Monterrey · Guadalajara",
+    "hint": "Select a state to raise it."
+  },
+  "Tools": {
+    "title": "What I work with.",
+    "lead": "The languages, frameworks and services I use to build applications end to end.",
+    "groups": {
+      "languages": {
+        "title": "Languages",
+        "items": [
+          "C++",
+          "Python",
+          "TypeScript",
+          "SQL"
+        ]
+      },
+      "web": {
+        "title": "Web & Backend",
+        "items": [
+          "React",
+          "Next.js",
+          "Node.js",
+          "PostgreSQL",
+          "Prisma",
+          "Auth.js",
+          "REST APIs",
+          "Tailwind CSS",
+          "Vite"
+        ]
+      },
+      "cloud": {
+        "title": "Cloud & Services",
+        "items": [
+          "Supabase (Auth, Row Level Security)",
+          "Stripe",
+          "Vercel",
+          "GitHub Actions",
+          "Sentry",
+          "Gemini API"
+        ]
+      },
+      "tools": {
+        "title": "Tools",
+        "items": [
+          "Git",
+          "GitHub",
+          "Linux",
+          "Vitest",
+          "Android Studio",
+          "Chrome Extensions (MV3)"
+        ]
+      }
+    }
+  },
+  "Education": {
+    "title": "Education and recognition.",
+    "education": {
+      "label": "Education",
+      "school": "Tecnológico de Monterrey",
+      "degree": "B.S. in Computer Science and Technology (ITC)",
+      "meta": "Guadalajara campus · Jul. 2028 (expected)",
+      "coursesLabel": "Relevant coursework",
+      "courses": [
+        "Fundamental Data Structures and Algorithms",
+        "Software Construction and Decision Making",
+        "Object-Oriented Programming",
+        "Databases",
+        "Internet of Things"
+      ]
+    },
+    "award": {
+      "label": "Recognition",
+      "title": "Gold medal (1st place)",
+      "event": "Baja California Sur State Physics Olympiad, 2022",
+      "description": "I was part of the four-person state delegation at the XXXIII National Physics Olympiad in Puebla."
+    }
+  },
+  "Contact": {
+    "title": "Let’s talk.",
+    "lead": "The fastest way to reach me is by email. You can also find me on GitHub and LinkedIn."
+  },
+  "Footer": {
+    "copyright": "© 2026 kscc.tech"
+  },
+  "NotFound": {
+    "title": "This page doesn’t exist.",
+    "description": "Check the address or head back home.",
+    "back": "Back to home"
+  },
+  "Person": {
+    "jobTitle": "Computer Science Student",
+    "award": "Gold medal (1st place), Baja California Sur State Physics Olympiad, 2022"
+  }
+}
