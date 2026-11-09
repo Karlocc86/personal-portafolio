@@ -40,7 +40,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     applicationName: site.domain,
     authors: [{ name: site.name, url: site.url }],
     creator: site.name,
-    keywords: [site.name, 'kssc.tech', 'Computer Science', 'Full-stack', 'TypeScript', 'Next.js', 'Tecnológico de Monterrey', 'Guadalajara'],
+    keywords: [site.name, 'kscc.tech', 'Computer Science', 'Full-stack', 'TypeScript', 'Next.js', 'Tecnológico de Monterrey', 'Guadalajara'],
     alternates: {
       canonical: `/${locale}`,
       languages: { es: '/es', en: '/en', 'x-default': '/' },

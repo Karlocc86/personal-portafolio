@@ -4,8 +4,8 @@ export type Theme = 'light' | 'dark';
 export const DEFAULT_THEME: Theme = 'dark';
 
 export const site = {
-  url: 'https://kssc.tech',
-  domain: 'kssc.tech',
+  url: 'https://kscc.tech',
+  domain: 'kscc.tech',
   name: 'Karlo Sebastián Cadena Cota',
   givenName: 'Karlo Sebastián',
   familyName: 'Cadena Cota',

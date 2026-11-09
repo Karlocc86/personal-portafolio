@@ -1,4 +1,4 @@
-# kssc.tech
+# kscc.tech
 
 Página personal de **Karlo Sebastián Cadena Cota**: un one-page bilingüe (ES/EN) hecho con Next.js (App Router), TypeScript, Tailwind CSS v4 y next-intl. Todo es estático: sin base de datos ni backend.
 
@@ -75,15 +75,15 @@ vercel          # vincula el proyecto y crea un preview
 vercel --prod   # publica en producción
 ```
 
-## Dominio: kssc.tech (y www con redirección)
+## Dominio: kscc.tech (y www con redirección)
 
 ### 1. En Vercel
 
 1. Abre el proyecto → **Settings → Domains**.
-2. Agrega `kssc.tech`. Cuando Vercel lo sugiera, agrega también `www.kssc.tech`.
-3. En la tarjeta de `www.kssc.tech`, elige **Edit → Redirect to `kssc.tech`** con código **308 (permanente)**. Así el dominio principal es el apex, que coincide con el canonical `https://kssc.tech` del sitio.
+2. Agrega `kscc.tech`. Cuando Vercel lo sugiera, agrega también `www.kscc.tech`.
+3. En la tarjeta de `www.kscc.tech`, elige **Edit → Redirect to `kscc.tech`** con código **308 (permanente)**. Así el dominio principal es el apex, que coincide con el canonical `https://kscc.tech` del sitio.
 
-### 2. En el registrador de kssc.tech
+### 2. En el registrador de kscc.tech
 
 Crea estos registros en el panel DNS de tu registrador (GoDaddy, Namecheap, Porkbun, Cloudflare, etc.):
 
@@ -105,15 +105,15 @@ Notas:
 ### 3. Comprobar
 
 ```bash
-dig A kssc.tech +short          # 76.76.21.21 (o tu IP de Vercel)
-dig CNAME www.kssc.tech +short  # el destino de Vercel
-curl -I https://www.kssc.tech   # 308 → https://kssc.tech/
+dig A kscc.tech +short          # 76.76.21.21 (o tu IP de Vercel)
+dig CNAME www.kscc.tech +short  # el destino de Vercel
+curl -I https://www.kscc.tech   # 308 → https://kscc.tech/
 ```
 
 ## SEO incluido
 
 - `title` y `description` por idioma, Open Graph (`profile`) y Twitter `summary_large_image` con imagen generada por idioma.
-- `<link rel="canonical">` a `https://kssc.tech/es` o `https://kssc.tech/en`, `hreflang` es/en y `x-default` → `https://kssc.tech`.
+- `<link rel="canonical">` a `https://kscc.tech/es` o `https://kscc.tech/en`, `hreflang` es/en y `x-default` → `https://kscc.tech`.
 - `/sitemap.xml` con alternates por idioma y `/robots.txt`.
 - JSON-LD `Person` con nombre, ubicación, universidad, idiomas, reconocimiento, herramientas y perfiles (`sameAs`).
 

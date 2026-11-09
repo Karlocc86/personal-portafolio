@@ -4,7 +4,7 @@ import { routing } from '@/i18n/routing';
 import en from '../../../messages/en.json';
 import es from '../../../messages/es.json';
 
-export const alt = 'Karlo Sebastián Cadena Cota · kssc.tech';
+export const alt = 'Karlo Sebastián Cadena Cota · kscc.tech';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -29,7 +29,7 @@ export default async function OpenGraphImage({ params }: { params: Promise<{ loc
           color: '#f5f5f7',
         }}
       >
-        <div style={{ display: 'flex', fontSize: 28, color: '#2997ff' }}>kssc.tech</div>
+        <div style={{ display: 'flex', fontSize: 28, color: '#2997ff' }}>kscc.tech</div>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', fontSize: 84, lineHeight: 1.05, letterSpacing: '-0.02em' }}>{hero.name}</div>
           <div style={{ display: 'flex', marginTop: 32, fontSize: 36, lineHeight: 1.3, color: '#f5f5f7' }}>{hero.role}</div>

@@ -21,7 +21,7 @@ export function Header() {
         {t('skip')}
       </a>
       <div className="mx-auto flex h-14 max-w-[1200px] items-center gap-8 px-5 sm:px-6">
-        <a href="#top" aria-label="kssc.tech" className="inline-flex rounded-md text-ink">
+        <a href="#top" aria-label="kscc.tech" className="inline-flex rounded-md text-ink">
           <svg viewBox="0 0 32 32" aria-hidden="true" className="size-6 flex-none">
             <rect width="32" height="32" rx="7.5" className="fill-ink" />
             <path
