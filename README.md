@@ -103,7 +103,7 @@ public/geo/                 Geometría del mapa de México
 ## Portafolio: galería horizontal
 
 - `Portfolio.tsx`: una portada y un panel por proyecto, con resumen, cómo está hecho, resultado, cifras, stack, enlace y captura.
-- **Galería horizontal** con la variante `hpin` de `globals.css`: pantallas de al menos 1024 × 800 px, con movimiento y con JavaScript.
+- **Galería horizontal** con la variante `hpin` de `globals.css`: pantallas de al menos 1024 × 720 px (alcanza una ventana maximizada normal), con movimiento y con JavaScript.
   - La sección se fija y el scroll vertical recorre la galería.
   - En la portada, el título se queda trabado mientras se llena de color.
   - Después pasa un panel por proyecto, con parallax: el nombre se adelanta, la captura se queda atrás y se descubre con `clip-path`.
