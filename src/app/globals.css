@@ -2,8 +2,17 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Galería horizontal del Portfolio: pantallas anchas y altas, con movimiento. */
-@custom-variant hpin (@media (min-width: 48rem) and (min-height: 40rem) and (prefers-reduced-motion: no-preference));
+/*
+ * Galería horizontal del Portfolio: pantallas de al menos 1024 × 800, con movimiento y con JS
+ * (clase `js` de themeScript). Si no, los paneles van apilados.
+ */
+@custom-variant hpin {
+  @media (min-width: 64rem) and (min-height: 50rem) and (prefers-reduced-motion: no-preference) {
+    :where(.js) & {
+      @slot;
+    }
+  }
+}
 
 /*
  * Secciones fijas que anima scroll-fx.js (Herramientas): solo con movimiento y con JS (clase `js`
@@ -42,13 +51,23 @@
   --canvas-alt: #f5f5f7;
   --ink: #1d1d1f;
   --ink-muted: #6e6e73;
+  --ink80: rgb(29 29 31 / 0.8);
+  --ink70: rgb(29 29 31 / 0.7);
   --link: #0066cc;
-  --focus: #0071e3;
   --glass: rgb(255 255 255 / 0.72);
+  --seg: rgb(29 29 31 / 0.07);
+  --seg-active: #ffffff;
   --line: rgb(29 29 31 / 0.3);
   --hairline: rgb(29 29 31 / 0.08);
   --scrim: rgb(255 255 255 / 0.84);
   --scrim0: rgb(255 255 255 / 0);
+  --hero-glow: rgb(0 113 227 / 0.05);
+  /* Nombre del pie: metal grabado */
+  --name-hi: rgb(29 29 31 / 0.92);
+  --name-mid: rgb(29 29 31 / 0.55);
+  --name-lo: rgb(29 29 31 / 0.12);
+  --name-edge: rgb(29 29 31 / 0.14);
+  --name-shine: rgb(255 255 255 / 0.85);
   color-scheme: light;
 }
 
@@ -57,13 +76,22 @@
   --canvas-alt: #1d1d1f;
   --ink: #f5f5f7;
   --ink-muted: #a1a1a6;
+  --ink80: rgb(245 245 247 / 0.8);
+  --ink70: rgb(245 245 247 / 0.7);
   --link: #2997ff;
-  --focus: #2997ff;
-  --glass: rgb(0 0 0 / 0.72);
+  --glass: rgb(22 22 23 / 0.72);
+  --seg: rgb(245 245 247 / 0.07);
+  --seg-active: rgb(255 255 255 / 0.18);
   --line: rgb(245 245 247 / 0.4);
   --hairline: rgb(245 245 247 / 0.08);
   --scrim: rgb(0 0 0 / 0.74);
   --scrim0: rgb(0 0 0 / 0);
+  --hero-glow: rgb(0 113 227 / 0.1);
+  --name-hi: rgb(255 255 255 / 0.96);
+  --name-mid: rgb(255 255 255 / 0.55);
+  --name-lo: rgb(255 255 255 / 0.1);
+  --name-edge: rgb(255 255 255 / 0.16);
+  --name-shine: rgb(255 255 255 / 0.7);
   color-scheme: dark;
 }
 
@@ -90,8 +118,14 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--focus);
+    outline: 2px solid var(--link);
     outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  a:active,
+  button:active {
+    opacity: 0.72;
   }
 }
 
@@ -169,6 +203,14 @@
     scroll-behavior: auto;
   }
 
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
   .rise,
   .header-in {
     animation: none;
@@ -208,6 +250,44 @@
     translate: none !important;
     text-align: center !important;
   }
+}
+
+/*
+ * “Sobre mí” sin JS (o si React no hidrata y themeScript quita `js`): igual que con movimiento
+ * reducido, la sección no se ancla y los textos quedan apilados y visibles.
+ */
+html:not(.js) #where {
+  height: auto;
+}
+
+html:not(.js) #where > div {
+  position: static;
+  height: auto;
+  padding-block: 3rem;
+}
+
+html:not(.js) #about {
+  top: 0;
+}
+
+html:not(.js) .where-caption {
+  position: relative !important;
+  inset: auto !important;
+  padding-inline: 1.5rem !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+}
+
+html:not(.js) .where-caption + .where-caption {
+  margin-top: 3rem;
+}
+
+html:not(.js) .where-caption > div {
+  max-width: 35rem !important;
+  margin-inline: auto !important;
+  translate: none !important;
+  text-align: center !important;
 }
 
 /* Contacto: el correo se “teclea” al entrar en pantalla. */
