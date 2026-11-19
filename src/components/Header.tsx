@@ -20,7 +20,7 @@ export function Header() {
       >
         {t('skip')}
       </a>
-      <div className="mx-auto flex h-14 max-w-[1200px] items-center gap-8 px-5 sm:px-6">
+      <div className="mx-auto flex h-14 max-w-[1200px] items-center gap-8 px-6">
         <a href="#top" aria-label="kscc.tech" className="inline-flex rounded-md text-ink">
           <svg viewBox="0 0 32 32" aria-hidden="true" className="size-6 flex-none">
             <rect width="32" height="32" rx="7.5" className="fill-ink" />
@@ -41,7 +41,7 @@ export function Header() {
                 <a
                   href={`#${id}`}
                   data-nav={id}
-                  className="text-[13px] font-medium text-ink-muted transition-colors duration-300 ease-apple hover:text-ink aria-[current=true]:text-ink"
+                  className="text-[13px] font-medium text-ink-muted transition-colors duration-200 ease-apple hover:text-ink aria-[current=true]:text-ink"
                 >
                   {t(`nav.${id}`)}
                 </a>
@@ -67,7 +67,7 @@ export function Header() {
                     lang={code}
                     aria-label={LANGUAGE_NAMES[code]}
                     aria-current={active ? 'true' : undefined}
-                    className={`inline-flex h-8 items-center px-1 transition-colors duration-300 ease-apple ${
+                    className={`inline-flex h-8 items-center px-1 transition-colors duration-200 ease-apple ${
                       active ? 'text-ink' : 'text-ink-muted hover:text-ink'
                     }`}
                   >
@@ -80,7 +80,7 @@ export function Header() {
           <ThemeToggle label={t('theme')} />
           <a
             href="#contact"
-            className="hidden h-[30px] items-center rounded-md border border-line px-3 text-[13px] font-medium text-ink transition-colors duration-300 ease-apple hover:bg-ink/[0.07] sm:inline-flex"
+            className="inline-flex h-[30px] items-center rounded-md border border-line px-3 text-[13px] font-medium text-ink transition-colors duration-200 ease-apple hover:bg-[var(--seg)]"
           >
             {hero('contact')}
           </a>

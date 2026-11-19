@@ -139,8 +139,8 @@
 /* Barra superior: transparente sobre el hero, vidrio esmerilado al hacer scroll */
 .site-header {
   transition:
-    background-color 0.4s cubic-bezier(0.25, 0.1, 0.25, 1),
-    border-color 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+    background-color 0.2s cubic-bezier(0.25, 0.1, 0.25, 1),
+    border-color 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .site-header[data-scrolled='true'] {
