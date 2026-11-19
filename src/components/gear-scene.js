@@ -4,16 +4,25 @@
  * con esquinas redondeadas, ranura circular, disco interior y monitor con “< >” en relieve.
  * Material casi negro y satinado: lo dibujan un filo de contraluz que recorre los biseles y
  * un brillo suave arriba a la izquierda; la parte baja se funde con el fondo.
- * Entrada: emerge de la oscuridad y gira hasta quedar de frente. Scroll: se acerca a la cámara.
+ *
+ * Entrada: emerge de la oscuridad y gira hasta quedar de frente.
+ * Portal (con `portal`, la sección siguiente): el lienzo queda fijo en pantalla. Al hacer scroll
+ * el texto del hero cae en la pantalla, el engrane gira sobre su eje y se acerca mientras el monitor
+ * se queda derecho; “<” y “>” salen disparados cada uno por su lado, la pantalla se vuelve un remolino y la cámara se mete
+ * por su centro hasta quedar en negro; ahí empieza la sección siguiente.
  * Lo usan HeroGear.tsx (Next.js) y la vista previa de diseño.
  */
 
 const FOV = (30 * Math.PI) / 180;
 const DIST = 9;
 const U = 525;
+/** Pantalla del monitor: semiejes y radio de esquina (unidades del modelo). */
+const SCREEN = [188 / U, 112 / U, 38 / U];
+/** Progreso de scroll (en alturas de pantalla de la sección siguiente) en el que el portal ya terminó. */
+const END = 1.62;
 const PALETTE = {
-  dark: { bg: [0, 0, 0], body: [0.075, 0.075, 0.08], disc: [0.05, 0.05, 0.055], mark: [0.1, 0.1, 0.108], amb: 0.55, key: 0.5, sheen: 0.09, edge: 1.35, alpha: 1 },
-  light: { bg: [1, 1, 1], body: [0.9, 0.9, 0.915], disc: [0.86, 0.86, 0.88], mark: [0.8, 0.8, 0.82], amb: 0.8, key: 0.25, sheen: 0.12, edge: 0.25, alpha: 0.75 },
+  dark: { bg: [0, 0, 0], body: [0.075, 0.075, 0.08], disc: [0.05, 0.05, 0.055], mark: [0.1, 0.1, 0.108], ink: [0.63, 0.63, 0.65], amb: 0.55, key: 0.5, sheen: 0.09, edge: 1.35, alpha: 1 },
+  light: { bg: [1, 1, 1], body: [0.9, 0.9, 0.915], disc: [0.86, 0.86, 0.88], mark: [0.8, 0.8, 0.82], ink: [0.43, 0.43, 0.45], amb: 0.8, key: 0.25, sheen: 0.12, edge: 0.25, alpha: 0.75 },
 };
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
@@ -249,10 +258,13 @@ function fan(m, rs) {
   }
 }
 
+/** body: engrane · disc: disco interior · frame: marco y base del monitor · glyphL/glyphR: “< >”. */
 function buildModel() {
   const body = mesh();
   const disc = mesh();
-  const mark = mesh();
+  const frame = mesh();
+  const glyphL = mesh();
+  const glyphR = mesh();
 
   const N = 1080;
   const outer = rings(contour(polarFromPolyline(gearOutline(), N), false), 0.11, -0.11, 0.05, 6);
@@ -270,10 +282,10 @@ function buildModel() {
   const bv = 0.016;
   const M = 480;
   const fo = rings(contour(polarFromSdf(roundedBox(px(225), px(149), px(75)), M), false), zf, zb, bv, 3);
-  const fi = rings(contour(polarFromSdf(roundedBox(px(188), px(112), px(38)), M), true), zf, zb, bv, 3);
-  walls(mark, fo);
-  walls(mark, fi);
-  annulus(mark, fo, fi);
+  const fi = rings(contour(polarFromSdf(roundedBox(SCREEN[0], SCREEN[1], SCREEN[2]), M), true), zf, zb, bv, 3);
+  walls(frame, fo);
+  walls(frame, fi);
+  annulus(frame, fo, fi);
 
   const strokes = [
     [pt(600, 748), pt(600, 790)],
@@ -283,12 +295,13 @@ function buildModel() {
     [pt(657, 542), pt(725, 593)],
     [pt(725, 607), pt(657, 658)],
   ];
-  for (const [p, q] of strokes) {
+  strokes.forEach(([p, q], i) => {
+    const m = i < 2 ? frame : i < 4 ? glyphL : glyphR;
     const r = rings(contour(capsule(p, q, px(19), 16), false), zf, zb, bv, 3);
-    walls(mark, r);
-    fan(mark, r);
-  }
-  return { body, disc, mark };
+    walls(m, r);
+    fan(m, r);
+  });
+  return { body, disc, frame, glyphL, glyphR };
 }
 
 /* ---------- Matrices 4×4 (column-major) ---------- */
@@ -332,25 +345,40 @@ function perspective(fovy, aspect, near, far) {
   return m;
 }
 
-function modelMatrix(R, s, y) {
+/** ox/oz: desplazamiento en los ejes del propio modelo (sigue su rotación y escala). */
+function modelMatrix(R, s, y, ox = 0, oz = 0) {
   const m = new Float32Array(R);
   for (const i of [0, 1, 2, 4, 5, 6, 8, 9, 10]) m[i] *= s;
-  m[13] = y;
+  m[12] = m[0] * ox + m[8] * oz;
+  m[13] = y + m[1] * ox + m[9] * oz;
+  m[14] = m[2] * ox + m[10] * oz;
   return m;
 }
 
 const normal3 = (m) => new Float32Array([m[0], m[1], m[2], m[4], m[5], m[6], m[8], m[9], m[10]]);
 
-const VS = `attribute vec3 aPos;attribute vec3 aNor;uniform mat4 uProj;uniform mat4 uModel;uniform mat3 uNorm;varying vec3 vN;varying vec3 vP;
-void main(){vec4 w=uModel*vec4(aPos,1.0);vP=w.xyz;vN=uNorm*aNor;gl_Position=uProj*vec4(w.x,w.y,w.z-${DIST.toFixed(1)},1.0);}`;
+const VS = `attribute vec3 aPos;attribute vec3 aNor;uniform mat4 uProj;uniform mat4 uModel;uniform mat3 uNorm;varying vec3 vN;varying vec3 vP;varying vec2 vM;
+void main(){vec4 w=uModel*vec4(aPos,1.0);vP=w.xyz;vM=aPos.xy;vN=uNorm*aNor;gl_Position=uProj*vec4(w.x,w.y,w.z-${DIST.toFixed(1)},1.0);}`;
 
 // uRim: contraluz (detrás, arriba-izquierda) → filo fino en los biseles.
 // uKeyPos: luz puntual frontal → brillo satinado con degradado sobre las caras planas.
 // uFrame: (centro y, radio) del objeto → la parte baja se funde con el fondo.
-const FS = `precision mediump float;varying vec3 vN;varying vec3 vP;
+// uHole: 0–1, la pantalla se vuelve un remolino (portal): se oscurece y la cruzan 10 líneas en espiral
+// logarítmica (uInk) que fluyen hacia el centro (uSpin). uCore: radio del centro vacío (color de
+// fondo, opaco), que crece durante la zambullida hasta dejar la vista en negro.
+const HX = (SCREEN[0] + 0.006).toFixed(4);
+const HY = (SCREEN[1] + 0.006).toFixed(4);
+const HR = (SCREEN[2] + 0.006).toFixed(4);
+const FS = `precision mediump float;varying vec3 vN;varying vec3 vP;varying vec2 vM;
 uniform vec3 uColor;uniform vec3 uBg;uniform vec3 uRim;uniform vec3 uKeyPos;uniform vec2 uFrame;
-uniform float uAmb;uniform float uKey;uniform float uSheen;uniform float uEdge;
+uniform float uAmb;uniform float uKey;uniform float uSheen;uniform float uEdge;uniform float uHole;uniform float uSpin;uniform float uCore;uniform vec3 uInk;
 void main(){
+float sw=0.0;float ln=0.0;float core=0.0;
+if(uHole>0.0){vec2 q=abs(vM)-vec2(${HX}-${HR},${HY}-${HR});float sd=length(max(q,0.0))+min(max(q.x,q.y),0.0)-${HR};
+if(sd<0.0){float r=length(vM)/${HX};float f=fract(atan(vM.y,vM.x)*1.59155+log(max(r,0.01))*4.5+uSpin);
+float d=min(f,1.0-f);float lw=mix(0.1,0.03,min(r,1.0));
+ln=(1.0-smoothstep(lw-0.03,lw+0.03,d))*smoothstep(uCore,uCore+0.3,r)*uHole;
+core=1.0-smoothstep(uCore-0.05,uCore+0.05,r);sw=uHole;}}
 vec3 n=normalize(vN);
 vec3 v=normalize(vec3(0.0,0.0,${DIST.toFixed(1)})-vP);
 float facing=1.0-clamp(dot(n,v),0.0,1.0);
@@ -363,13 +391,18 @@ float rel=(vP.y-uFrame.x)/uFrame.y;
 float fade=smoothstep(-1.15,0.55,rel);
 vec3 col=uColor*(uAmb*hemi+d*uKey)+vec3(sh);
 col=mix(uBg,col,fade)+vec3(rim)*mix(0.25,1.0,fade);
+col=mix(col,uBg,sw*0.85);
+col=mix(col,uInk,ln);
+col=mix(col,uBg,core*sw);
 gl_FragColor=vec4(col,1.0);}`;
 
 /**
  * Monta la escena en `canvas` (posición absoluta dentro de `section`, el hero).
+ * Con `portal` (la sección que sigue al hero) activa la transición de portal; el hero necesita
+ * `z-index` mayor que esa sección para que el lienzo fijo quede encima de ella.
  * Devuelve { refresh, destroy } o null si no hay WebGL.
  */
-export function mountGear({ canvas, section, isDark, reducedMotion = false }) {
+export function mountGear({ canvas, section, portal = null, isDark, reducedMotion = false }) {
   let gl = null;
   try {
     gl = canvas.getContext('webgl', { antialias: true, alpha: true, premultipliedAlpha: true, powerPreference: 'low-power' });
@@ -391,8 +424,9 @@ export function mountGear({ canvas, section, isDark, reducedMotion = false }) {
     gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
     gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
     gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return null;
-  } catch {
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog) || 'link');
+  } catch (err) {
+    console.warn('gear-scene', err);
     return null;
   }
   gl.useProgram(prog);
@@ -402,7 +436,7 @@ export function mountGear({ canvas, section, isDark, reducedMotion = false }) {
   gl.enableVertexAttribArray(aPos);
   gl.enableVertexAttribArray(aNor);
   const u = {};
-  for (const name of ['uProj', 'uModel', 'uNorm', 'uColor', 'uBg', 'uRim', 'uKeyPos', 'uFrame', 'uAmb', 'uKey', 'uSheen', 'uEdge']) {
+  for (const name of ['uProj', 'uModel', 'uNorm', 'uColor', 'uBg', 'uRim', 'uKeyPos', 'uFrame', 'uAmb', 'uKey', 'uSheen', 'uEdge', 'uHole', 'uSpin', 'uCore', 'uInk']) {
     u[name] = gl.getUniformLocation(prog, name);
   }
 
@@ -416,77 +450,107 @@ export function mountGear({ canvas, section, isDark, reducedMotion = false }) {
     return { pos: buffer(m.pos), nor: buffer(m.nor), count: m.pos.length / 3 };
   };
   const geo = buildModel();
-  const meshes = { body: upload(geo.body), disc: upload(geo.disc), mark: upload(geo.mark) };
+  const meshes = { body: upload(geo.body), disc: upload(geo.disc), frame: upload(geo.frame), glyphL: upload(geo.glyphL), glyphR: upload(geo.glyphR) };
 
   gl.enable(gl.DEPTH_TEST);
   gl.disable(gl.CULL_FACE);
   gl.clearColor(0, 0, 0, 0);
 
+  const fixed = !!portal && !reducedMotion;
+  const prevPosition = canvas.style.position;
+  if (fixed) canvas.style.position = 'fixed';
+
   let W = 1;
   let H = 1;
+  let heroH = 1;
+  let heroTop = 0;
   let raf = 0;
   let alive = true;
+  let tx = 0;
+  let ty = 0;
+  let mx = 0;
+  let my = 0;
   const t0 = performance.now();
 
   function measure() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     W = Math.max(canvas.clientWidth, 1);
     H = Math.max(canvas.clientHeight, 1);
+    heroH = Math.max(section.offsetHeight, 1);
+    heroTop = section.getBoundingClientRect().top + window.scrollY;
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
     gl.viewport(0, 0, canvas.width, canvas.height);
   }
 
+  /** Fijo: alturas de pantalla que ha entrado la sección siguiente (1 = queda anclada). Si no: avance del hero. */
   function progress() {
     if (reducedMotion) return 0;
-    return clamp01(-section.getBoundingClientRect().top / Math.max(section.offsetHeight, 1));
+    if (fixed) {
+      const vh = Math.max(window.innerHeight, 1);
+      return Math.max(0, (vh - portal.getBoundingClientRect().top) / vh);
+    }
+    return clamp01(-section.getBoundingClientRect().top / heroH);
   }
 
-  function visible() {
+  function active(p) {
+    if (fixed) return p < END;
     const r = section.getBoundingClientRect();
     return r.bottom > 0 && r.top < window.innerHeight;
   }
 
-  function draw(m, R, s, y, color) {
+  function draw(m, R, s, y, color, ox = 0, oz = 0) {
     gl.bindBuffer(gl.ARRAY_BUFFER, m.pos);
     gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 0, 0);
     gl.bindBuffer(gl.ARRAY_BUFFER, m.nor);
     gl.vertexAttribPointer(aNor, 3, gl.FLOAT, false, 0, 0);
-    gl.uniformMatrix4fv(u.uModel, false, modelMatrix(R, s, y));
+    gl.uniformMatrix4fv(u.uModel, false, modelMatrix(R, s, y, ox, oz));
     gl.uniformMatrix3fv(u.uNorm, false, normal3(R));
     gl.uniform3fv(u.uColor, color);
     gl.drawArrays(gl.TRIANGLES, 0, m.count);
   }
 
-  function render(time) {
+  function render(time, p) {
     const pal = isDark() ? PALETTE.dark : PALETTE.light;
-    const p = progress();
-    const e = smooth(p);
+    const e = smooth(clamp01(p));
 
     // Entrada: emerge de la oscuridad, algo inclinado y lejos, y gira hasta quedar de frente.
     const ti = reducedMotion ? 99 : (performance.now() - t0) / 1000;
     const k = easeOut(clamp01((ti - 0.1) / 3.2));
-    const fade = smooth(clamp01(ti / 2));
+    const intro = smooth(clamp01(ti / 2));
     const idle = reducedMotion ? 0 : 1;
 
-    // Scroll: se acerca a la cámara (crece y se inclina hacia el frente) y sube más lento que el texto.
+    // Portal: primero salen “<” y “>”, detrás nace el remolino y luego el texto cae en él
+    // (scroll-fx.js); después el monitor se pone de frente y la cámara se lanza a su centro.
+    const front = fixed ? smooth(clamp01((p - 0.5) / 0.45)) : 0;
+    const swirl = fixed ? smooth(clamp01((p - 0.1) / 0.22)) : 0;
+    const dive = fixed ? smooth(clamp01((p - 0.95) / 0.6)) : 0;
+    const grow = fixed ? lerp(1, 1.7, smooth(clamp01(p / 0.95))) : lerp(1, 1.75, e);
+    const live = idle * (1 - front);
+    mx += (tx - mx) * 0.06;
+    my += (ty - my) * 0.06;
+
     const halfH = DIST * Math.tan(FOV / 2);
     const wpp = (2 * halfH) / H;
-    const base = halfH * Math.min(0.52, 0.8 * (W / H));
-    const s = base * lerp(0.86, 1, k) * lerp(1, 1.75, e);
-    const centerPx = H * 0.3 + e * H * 0.38;
-    const y = (H / 2 - centerPx) * wpp + Math.sin(time * 0.7) * 0.01 * base * idle;
+    const base = Math.min(0.26 * heroH, 0.4 * W) * wpp;
+    const s = base * lerp(0.86, 1, k) * grow * Math.exp(Math.log(11) * dive);
+    const centerPx = fixed
+      ? lerp(heroTop + heroH * 0.3, H / 2, smooth(clamp01(p / 0.7)))
+      : heroH * 0.3 + e * heroH * 0.38;
+    const y = (H / 2 - centerPx) * wpp + Math.sin(time * 0.7) * 0.01 * base * live;
 
     const R = mul(
-      rot('x', lerp(-0.5, -0.16, k) + e * 0.22 + Math.sin(time * 0.17) * 0.03 * idle),
-      rot('y', lerp(0.42, 0.08, k) + Math.sin(time * 0.22) * 0.09 * idle),
+      rot('x', (lerp(-0.5, -0.16, k) + e * 0.22) * (1 - front) + (Math.sin(time * 0.17) * 0.03 + my * 0.07) * live),
+      rot('y', lerp(0.42, 0.08, k) * (1 - front) + (Math.sin(time * 0.22) * 0.09 + mx * 0.14) * live),
     );
+    // El engrane gira sobre su eje con el scroll; el disco y el monitor se quedan derechos.
+    const gearR = mul(R, rot('z', -p * Math.PI * 1.1 - time * 0.05 * idle));
 
     // La contraluz barre los bordes durante la entrada y luego oscila despacio.
     const ang = (lerp(205, 128, k) + Math.sin(time * 0.26) * 16 * idle) * (Math.PI / 180);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    gl.uniformMatrix4fv(u.uProj, false, perspective(FOV, W / H, 0.1, 50));
+    gl.uniformMatrix4fv(u.uProj, false, perspective(FOV, W / H, 0.1, 60));
     gl.uniform3fv(u.uBg, pal.bg);
     gl.uniform3f(u.uRim, Math.cos(ang), Math.sin(ang), -0.35);
     gl.uniform3f(u.uKeyPos, -2.4 * s, y + 2.6 * s, 3.2 * s);
@@ -495,18 +559,40 @@ export function mountGear({ canvas, section, isDark, reducedMotion = false }) {
     gl.uniform1f(u.uKey, pal.key);
     gl.uniform1f(u.uSheen, pal.sheen);
     gl.uniform1f(u.uEdge, pal.edge);
-    draw(meshes.body, R, s, y, pal.body);
+    gl.uniform1f(u.uHole, 0);
+    draw(meshes.body, gearR, s, y, pal.body);
+    gl.uniform1f(u.uHole, swirl);
+    // Fluye hacia el centro con el tiempo y más rápido al hacer scroll (solo cuenta la parte
+    // fraccionaria: mantiene la precisión en mediump). El centro vacío crece en la zambullida.
+    gl.uniform1f(u.uSpin, (time * 0.45 + p * 6) % 1);
+    gl.uniform1f(u.uCore, 0.06 + 0.72 * dive);
+    gl.uniform3fv(u.uInk, pal.ink);
     draw(meshes.disc, R, s, y, pal.disc);
-    draw(meshes.mark, R, s, y, pal.mark);
+    gl.uniform1f(u.uHole, 0);
+    draw(meshes.frame, R, s, y, pal.mark);
+    // “<” y “>” se despegan de la pantalla hacia la cámara, cada uno por su lado, hasta perderse
+    // fuera del lienzo. Detrás queda el remolino.
+    const part = fixed ? clamp01(p / 0.26) : 0;
+    if (part < 1) {
+      const reach = ((W / 2) * wpp) / s + 0.6;
+      const ox = part * part * reach;
+      const oz = smooth(clamp01(part / 0.35)) * 0.14 + part * part * 0.5;
+      draw(meshes.glyphL, R, s, y, pal.mark, -ox, oz);
+      draw(meshes.glyphR, R, s, y, pal.mark, ox, oz);
+    }
 
-    canvas.style.opacity = String(pal.alpha * fade * (1 - 0.35 * e));
+    const out = fixed ? 1 - smooth(clamp01((p - 1.45) / 0.15)) : 1 - 0.35 * e;
+    canvas.style.opacity = String(pal.alpha * intro * out);
   }
 
   function frame(now) {
     raf = 0;
     if (!alive) return;
-    if (visible()) render(reducedMotion ? 0 : now / 1000);
-    if (!reducedMotion && visible() && !document.hidden) raf = requestAnimationFrame(frame);
+    const p = progress();
+    const on = active(p);
+    if (fixed) canvas.style.visibility = on ? 'visible' : 'hidden';
+    if (on) render(reducedMotion ? 0 : now / 1000, p);
+    if (!reducedMotion && on && !document.hidden) raf = requestAnimationFrame(frame);
   }
 
   const kick = () => {
@@ -516,11 +602,17 @@ export function mountGear({ canvas, section, isDark, reducedMotion = false }) {
     measure();
     kick();
   };
+  const onPointer = (ev) => {
+    if (ev.pointerType && ev.pointerType !== 'mouse') return;
+    tx = (ev.clientX / Math.max(window.innerWidth, 1)) * 2 - 1;
+    ty = (ev.clientY / Math.max(window.innerHeight, 1)) * 2 - 1;
+  };
 
   measure();
   kick();
   window.addEventListener('scroll', kick, { passive: true });
   window.addEventListener('resize', onResize);
+  window.addEventListener('pointermove', onPointer, { passive: true });
   document.addEventListener('visibilitychange', kick);
 
   return {
@@ -528,12 +620,19 @@ export function mountGear({ canvas, section, isDark, reducedMotion = false }) {
       measure();
       kick();
     },
+    /** Dibuja ya el cuadro del progreso actual (para capturas). */
+    renderNow(time = 99) {
+      render(time, progress());
+    },
     destroy() {
       alive = false;
       if (raf) cancelAnimationFrame(raf);
       window.removeEventListener('scroll', kick);
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('pointermove', onPointer);
       document.removeEventListener('visibilitychange', kick);
+      canvas.style.position = prevPosition;
+      canvas.style.visibility = '';
       const lose = gl.getExtension('WEBGL_lose_context');
       if (lose) lose.loseContext();
     },

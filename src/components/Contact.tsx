@@ -1,38 +1,34 @@
 import { useTranslations } from 'next-intl';
 import { site } from '@/lib/site';
-import { ChevronLink, Section, SectionTitle } from './ui';
+import { CopyEmail } from './CopyEmail';
+import { SectionTitle } from './ui';
 
 export function Contact() {
   const t = useTranslations('Contact');
-  const common = useTranslations('Common');
 
   return (
-    <Section id="contact" labelledBy="contact-title">
-      <div className="text-center">
+    <section id="contact" aria-labelledby="contact-title" className="bg-canvas px-6 py-[clamp(96px,12vw,160px)]">
+      <div className="mx-auto max-w-[1200px] text-center">
         <SectionTitle id="contact-title">{t('title')}</SectionTitle>
         <p
           data-reveal
-          className="mx-auto mt-6 max-w-[36rem] text-pretty text-[19px] leading-[1.45] text-ink-muted sm:text-[21px] [--delay:80ms]"
+          className="mx-auto mt-6 max-w-[36rem] text-pretty text-[clamp(19px,2vw,21px)] leading-[1.45] text-ink-muted [--delay:80ms]"
         >
           {t('lead')}
         </p>
-        <div data-reveal className="mt-10 [--delay:160ms]">
+        {/* El correo se “teclea” al entrar en pantalla (.type-in en globals.css). */}
+        <div data-reveal className="mt-11 [--delay:160ms]">
           <a
             href={`mailto:${site.email}`}
-            className="text-[clamp(1.375rem,4.6vw,2.5rem)] font-semibold tracking-[-0.015em] text-link underline-offset-[6px] [overflow-wrap:anywhere] hover:underline"
+            className="type-in inline-block text-[clamp(1.375rem,5.2vw,3.75rem)] font-semibold leading-[1.15] tracking-[-0.03em] text-ink underline transition-colors duration-200 ease-apple [overflow-wrap:anywhere] [text-decoration-color:var(--line)] [text-decoration-thickness:0.04em] [text-underline-offset:0.16em] hover:text-link hover:[text-decoration-color:var(--link)]"
           >
             {site.email}
           </a>
         </div>
-        <div data-reveal className="mt-8 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 [--delay:240ms]">
-          <ChevronLink href={site.github} external newTabLabel={common('newTab')}>
-            GitHub
-          </ChevronLink>
-          <ChevronLink href={site.linkedin} external newTabLabel={common('newTab')}>
-            LinkedIn
-          </ChevronLink>
+        <div data-reveal className="mt-7 flex justify-center [--delay:240ms]">
+          <CopyEmail email={site.email} label={t('copy')} copiedLabel={t('copied')} />
         </div>
       </div>
-    </Section>
+    </section>
   );
 }

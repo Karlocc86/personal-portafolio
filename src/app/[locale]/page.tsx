@@ -1,10 +1,11 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Contact } from '@/components/Contact';
-import { Education } from '@/components/Education';
 import { Footer } from '@/components/Footer';
 import { Header } from '@/components/Header';
 import { Hero } from '@/components/Hero';
+import { Portfolio } from '@/components/Portfolio';
 import { RevealObserver } from '@/components/RevealObserver';
+import { ScrollFx } from '@/components/ScrollFx';
 import { Tools } from '@/components/Tools';
 import { Where } from '@/components/Where';
 import { site } from '@/lib/site';
@@ -13,7 +14,7 @@ type Props = {
   params: Promise<{ locale: string }>;
 };
 
-type ToolGroups = Record<string, { title: string; items: string[] }>;
+type Layer = { title: string; body: string; items: string[] };
 
 export default async function HomePage({ params }: Props) {
   const { locale } = await params;
@@ -22,7 +23,7 @@ export default async function HomePage({ params }: Props) {
   const tPerson = await getTranslations('Person');
   const tMeta = await getTranslations('Metadata');
   const tTools = await getTranslations('Tools');
-  const groups = tTools.raw('groups') as ToolGroups;
+  const layers = tTools.raw('layers') as Layer[];
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -51,7 +52,7 @@ export default async function HomePage({ params }: Props) {
       { '@type': 'Language', name: 'Spanish', alternateName: 'es' },
       { '@type': 'Language', name: 'English', alternateName: 'en' },
     ],
-    knowsAbout: Object.values(groups).flatMap((group) => group.items),
+    knowsAbout: layers.flatMap((layer) => layer.items),
     sameAs: [site.github, site.linkedin],
   };
 
@@ -62,11 +63,12 @@ export default async function HomePage({ params }: Props) {
         <Hero />
         <Where />
         <Tools />
-        <Education />
+        <Portfolio />
         <Contact />
       </main>
       <Footer />
       <RevealObserver />
+      <ScrollFx />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}

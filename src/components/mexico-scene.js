@@ -1,48 +1,49 @@
 /**
- * Mapa 3D de México por estados: WebGL puro, sin dependencias.
- * Cada estado es un prisma extruido cuya altura se puede animar por separado (setHeight / highlights).
- * Geometría: /geo/mexico-states.json (Natural Earth vía angelnmara/geojson, proyectada en Mercator,
- * simplificada y triangulada de antemano).
+ * Mapa 3D de México narrado con el scroll (sección de 700svh con escenario sticky). WebGL puro; única
+ * dependencia: earcut (triangulación).
  *
- * Línea de tiempo ligada al scroll de `section` (alto ≈ 500svh con escenario sticky), ver TL:
- *   zoom-in a México → zoom a Todos Santos, donde se arma una cabaña de playa en bloques → el avión despega,
- *   la cámara lo sigue hasta Guadalajara → zoom-out al mapa completo con la ruta trazada.
- * Interacción: hover alza un poco el estado y muestra su nombre; clic lo deja alzado.
+ * - Datos (/geo/mexico-states.json, v2): México es una placa (tapa por estado, muros en costa y
+ *   fronteras internacionales); los vecinos quedan al nivel del mar.
+ * - Entrada: el remolino del engrane termina en negro y desde ahí nace México, estado por estado, con un
+ *   rebote (solo México: los países vecinos no se dibujan).
+ * - Recorrido (tramos en CHAPTERS): México completo → acercamiento a Todos Santos y Baja California Sur
+ *   se alza → un avión vuela a Guadalajara y deja la ruta punteada → Jalisco se alza → vuelta al mapa
+ *   completo. Al final, el cursor muestra el nombre de cada estado y un clic lo alza.
  */
+import earcut from './earcut.js';
 
 const DEG = Math.PI / 180;
 const FOV = 30 * DEG;
-const BASE_H = 0.026;
-const RAISE_H = 0.17;
-const HOVER_H = 0.035;
-const PIN_H = 0.11;
-const FINAL_TILT = 0.95;
-const STUD = 0.0036;
-const DROP = 6;
-const HOUSE_YAW = 0.1;
-const PLANE_SIZE = 0.034;
-const FLIGHT_ALT = 0.11;
-/** Fases sobre el progreso de scroll de la sección (0–1). */
-const TL = {
-  mexico: [0.03, 0.14],
-  text: [0.08, 0.13],
-  home: [0.16, 0.24],
-  build: [0.24, 0.5],
-  out: [0.52, 0.58],
-  fly: [0.58, 0.8],
-  final: [0.83, 0.93],
+/** Grosor de la placa de México (mundo; el ancho del país = 2). */
+const SLAB = 0.012;
+/** Altura a la que se alza un estado. */
+const RAISE = 0.05;
+const OVER_TILT = 0.95;
+const SUN = norm3([-0.42, -0.58, 0.7]);
+const PLANE_SIZE = 0.028;
+const FLIGHT_ALT = 0.08;
+const ROUTE_DASHES = 64;
+/** Progreso del tramo fijo en que termina el portal del engrane (1.62 pantallas de las 6 del tramo). */
+const PORTAL = 0.105;
+
+/** Guion compartido por la escena y la página: tramos [inicio, fin] del progreso 0–1 del tramo fijo. */
+export const CHAPTERS = {
+  captions: [[0.13, 0.26], [0.33, 0.47], [0.53, 0.78], [0.85, 1.01]],
+  segments: [[PORTAL, 0.28], [0.28, 0.5], [0.5, 0.8], [0.8, 1]],
+  raise: { origin: 0.3, school: 0.6 },
+  scrim: [0.32, 0.78],
 };
 
 const TONES = {
   dark: {
-    top: [0.11, 0.11, 0.12], hover: [0.22, 0.22, 0.235], line: [0.36, 0.36, 0.38],
-    ink: [0.93, 0.93, 0.95], accent: [0.0, 0.443, 0.89], objBody: [0.95, 0.95, 0.96], objRoof: [0.42, 0.42, 0.45],
-    amb: 0.42, key: 0.78, spec: 0.22, rim: 0.2, shadow: 0,
+    bg: [0, 0, 0], top: [0.125, 0.125, 0.135], lit: [0.24, 0.24, 0.255], hover: [0.18, 0.18, 0.195], wall: [0.08, 0.08, 0.085], side: [0.15, 0.15, 0.16],
+    nb: [0.05, 0.05, 0.055], border: [0.3, 0.3, 0.32, 0.9], coast: [0.42, 0.42, 0.45, 1], ink: [0.96, 0.96, 0.97],
+    plane: [0.93, 0.93, 0.94], planeAccent: [0.42, 0.42, 0.45], amb: 0.52, key: 0.8, planeShadow: 0.45,
   },
   light: {
-    top: [0.95, 0.95, 0.955], hover: [0.86, 0.86, 0.88], line: [0.74, 0.74, 0.76],
-    ink: [0.17, 0.17, 0.18], accent: [0.0, 0.443, 0.89], objBody: [1, 1, 1], objRoof: [0.2, 0.2, 0.22],
-    amb: 0.6, key: 0.46, spec: 0.1, rim: 0, shadow: 0.045,
+    bg: [1, 1, 1], top: [0.925, 0.925, 0.935], lit: [0.84, 0.84, 0.855], hover: [0.88, 0.88, 0.895], wall: [0.76, 0.76, 0.78], side: [0.7, 0.7, 0.72],
+    nb: [0.955, 0.955, 0.96], border: [0.68, 0.68, 0.71, 0.9], coast: [0.5, 0.5, 0.53, 1], ink: [0.11, 0.11, 0.12],
+    plane: [0.28, 0.28, 0.3], planeAccent: [0.6, 0.6, 0.62], amb: 0.66, key: 0.45, planeShadow: 0.16,
   },
 };
 
@@ -50,6 +51,39 @@ const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const smooth = (t) => t * t * t * (t * (t * 6 - 15) + 10);
 const lerp = (a, b, t) => a + (b - a) * t;
 const mix3 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
+const hash = (a, b = 0) => {
+  const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
+  return s - Math.floor(s);
+};
+function norm3(v) {
+  const l = Math.hypot(v[0], v[1], v[2]) || 1;
+  return [v[0] / l, v[1] / l, v[2] / l];
+}
+const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+
+/** Curva cúbica de Bézier (como en CSS), para el ease-out de llegada. */
+function bezier(x1, y1, x2, y2) {
+  const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+  const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+  const X = (t) => ((ax * t + bx) * t + cx) * t;
+  const dX = (t) => (3 * ax * t + 2 * bx) * t + cx;
+  return (x) => {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    let t = x;
+    for (let i = 0; i < 8; i++) {
+      const e = X(t) - x;
+      const d = dX(t);
+      if (Math.abs(e) < 1e-5 || Math.abs(d) < 1e-6) break;
+      t = Math.min(1, Math.max(0, t - e / d));
+    }
+    return ((ay * t + by) * t + cy) * t;
+  };
+}
+const EASE = bezier(0.33, 0, 0.15, 1);
+const EASE_IO = bezier(0.45, 0, 0.25, 1);
 
 /* ---------- Matrices 4×4 (column-major) ---------- */
 
@@ -73,35 +107,11 @@ function rot(axis, t) {
   const s = Math.sin(t);
   if (axis === 'x') {
     m[5] = c; m[6] = s; m[9] = -s; m[10] = c;
+  } else if (axis === 'y') {
+    m[0] = c; m[2] = -s; m[8] = s; m[10] = c;
   } else {
     m[0] = c; m[1] = s; m[4] = -s; m[5] = c;
   }
-  return m;
-}
-
-function perspective(fovy, aspect, near, far) {
-  const f = 1 / Math.tan(fovy / 2);
-  const m = new Float32Array(16);
-  m[0] = f / aspect;
-  m[5] = f;
-  m[10] = (far + near) / (near - far);
-  m[11] = -1;
-  m[14] = (2 * far * near) / (near - far);
-  return m;
-}
-
-const transform = (m, x, y, z) => [
-  m[0] * x + m[4] * y + m[8] * z + m[12],
-  m[1] * x + m[5] * y + m[9] * z + m[13],
-  m[2] * x + m[6] * y + m[10] * z + m[14],
-  m[3] * x + m[7] * y + m[11] * z + m[15],
-];
-
-function rotY(t) {
-  const m = identity();
-  const c = Math.cos(t);
-  const s = Math.sin(t);
-  m[0] = c; m[2] = -s; m[8] = s; m[10] = c;
   return m;
 }
 
@@ -117,22 +127,49 @@ function scaling(x, y, z) {
   return m;
 }
 
-const rot3 = (m) => new Float32Array([m[0], m[1], m[2], m[4], m[5], m[6], m[8], m[9], m[10]]);
-const easeOutBack = (t) => 1 + 2.4 * Math.pow(t - 1, 3) + 1.4 * Math.pow(t - 1, 2);
+function perspective(fovy, aspect, near, far) {
+  const f = 1 / Math.tan(fovy / 2);
+  const m = new Float32Array(16);
+  m[0] = f / aspect;
+  m[5] = f;
+  m[10] = (far + near) / (near - far);
+  m[11] = -1;
+  m[14] = (2 * far * near) / (near - far);
+  return m;
+}
 
-/* ---------- Objetos low-poly: casa y avión ---------- */
+function ortho(l, r, b, t, n, f) {
+  const m = identity();
+  m[0] = 2 / (r - l); m[5] = 2 / (t - b); m[10] = -2 / (f - n);
+  m[12] = -(r + l) / (r - l); m[13] = -(t + b) / (t - b); m[14] = -(f + n) / (f - n);
+  return m;
+}
+
+function lookAt(eye, at, up) {
+  const z = norm3(sub3(eye, at));
+  const x = norm3(cross3(up, z));
+  const y = cross3(z, x);
+  return new Float32Array([x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0, -dot3(x, eye), -dot3(y, eye), -dot3(z, eye), 1]);
+}
+
+const transform = (m, x, y, z) => [
+  m[0] * x + m[4] * y + m[8] * z + m[12],
+  m[1] * x + m[5] * y + m[9] * z + m[13],
+  m[2] * x + m[6] * y + m[10] * z + m[14],
+  m[3] * x + m[7] * y + m[11] * z + m[15],
+];
+
+const rot3 = (m) => new Float32Array([m[0], m[1], m[2], m[4], m[5], m[6], m[8], m[9], m[10]]);
+
+/* ---------- Avión low-poly (nariz hacia +x, ~1.15 de largo) ---------- */
 
 function solid() {
   const pos = [];
   const nor = [];
   const tri = (a, b, c) => {
-    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
-    const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
-    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
-    const L = Math.hypot(nx, ny, nz) || 1;
-    nx /= L; ny /= L; nz /= L;
+    const n = norm3(cross3(sub3(b, a), sub3(c, a)));
     pos.push(...a, ...b, ...c);
-    for (let i = 0; i < 3; i++) nor.push(nx, ny, nz);
+    for (let i = 0; i < 3; i++) nor.push(n[0], n[1], n[2]);
   };
   const quad = (a, b, c, d) => {
     tri(a, b, c);
@@ -146,471 +183,433 @@ function solid() {
     quad([x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1]);
     quad([x0, y1, z0], [x0, y0, z0], [x0, y0, z1], [x0, y1, z1]);
   };
-  return { pos, nor, tri, quad, box };
+  const slab = (pts, z0, z1, map = (p) => p) => {
+    const a = pts.map(([x, y]) => map([x, y, z0]));
+    const b = pts.map(([x, y]) => map([x, y, z1]));
+    for (let i = 1; i < pts.length - 1; i++) {
+      tri(b[0], b[i], b[i + 1]);
+      tri(a[0], a[i + 1], a[i]);
+    }
+    for (let i = 0; i < pts.length; i++) {
+      const j = (i + 1) % pts.length;
+      quad(a[i], a[j], b[j], b[i]);
+    }
+  };
+  return { pos, nor, quad, box, slab };
 }
 
-/* ---------- Cabaña de playa en bloques (estilo LEGO) ---------- */
-
-const BRICK = 1.2;
-const PLATE = 0.4;
-const COL = {
-  sand: [0.95, 0.89, 0.76], sandSide: [0.86, 0.77, 0.62], water: [0.42, 0.74, 0.8], waterDeep: [0.3, 0.62, 0.72], foam: [0.97, 0.97, 0.95],
-  wood: [0.82, 0.52, 0.34], woodDark: [0.64, 0.39, 0.25], wall: [0.56, 0.75, 0.71], trim: [0.98, 0.97, 0.94],
-  roof: [0.91, 0.85, 0.71], roofAlt: [0.85, 0.78, 0.63], glass: [0.99, 0.8, 0.58],
-  trunk: [0.8, 0.56, 0.38], trunkDark: [0.7, 0.47, 0.31], leaf: [0.58, 0.74, 0.44], leafDark: [0.43, 0.62, 0.34],
-  bush: [0.33, 0.56, 0.32], bushLight: [0.45, 0.66, 0.38], pebble: [0.9, 0.9, 0.88],
-};
-
-/**
- * Cabaña de playa (referencia: casita verde salvia de un piso con techo claro de dos aguas,
- * ventana redonda en el frontón, terraza de madera con barandales y escalones, cuatro palmeras,
- * arbustos y una franja de mar al frente) en unidades de “stud”: 14 × 12 de base, ~11 de alto.
- * Devuelve las piezas en orden de construcción, cada una con su rango en el búfer.
- */
-function buildDiorama() {
-  const bricks = [];
-  let group = 0;
-  const add = (x, y, z, w, d, h, color, o = {}) =>
-    bricks.push({ x, y, z, w, d, h, color, glow: !!o.glow, studs: o.studs ?? !o.glow, group });
-  const next = () => {
-    group += 1;
-  };
-  const range = (a, b) => Array.from({ length: Math.max(0, b - a) }, (_, i) => a + i);
-  const hash = (a, b) => {
-    const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
-    return s - Math.floor(s);
-  };
-  const flat = { studs: false };
-
-  // Muros con hileras trabadas (las esquinas alternan entre frente y costados).
-  const ring = (x0, x1, y0, y1, z0, courses, holes, color) => {
-    for (let c = 0; c < courses; c++) {
-      const z = z0 + c * BRICK;
-      const odd = c % 2 === 1;
-      const hole = (x, y) => holes.some((h) => h.c.includes(c) && x >= h.x0 && x < h.x1 && y >= h.y0 && y < h.y1);
-      const run = (cells, mk) => {
-        let seg = [];
-        const flush = () => {
-          let i = 0;
-          let first = true;
-          while (i < seg.length) {
-            const len = Math.min(first && odd ? 1 : 2, seg.length - i);
-            mk(seg[i], len);
-            i += len;
-            first = false;
-          }
-          seg = [];
-        };
-        for (const cell of cells) {
-          if (hole(cell[0], cell[1])) flush();
-          else seg.push(cell);
-        }
-        flush();
-      };
-      const fx0 = odd ? x0 + 1 : x0;
-      const fx1 = odd ? x1 - 1 : x1;
-      const sy0 = odd ? y0 : y0 + 1;
-      const sy1 = odd ? y1 : y1 - 1;
-      for (const y of [y0, y1 - 1]) run(range(fx0, fx1).map((x) => [x, y]), (p, len) => add(p[0], p[1], z, len, 1, BRICK, color, flat));
-      for (const x of [x0, x1 - 1]) run(range(sy0, sy1).map((y) => [x, y]), (p, len) => add(p[0], p[1], z, 1, len, BRICK, color, flat));
-    }
-  };
-
-  // 1. Base de arena (bloque grueso con esquinas redondeadas).
-  const inBase = (cx, cy) => Math.pow(Math.abs((cx + 0.5 - 7) / 7.1), 6) + Math.pow(Math.abs((cy + 0.5 - 6) / 6.1), 6) <= 1;
-  const cells = (fn) => {
-    for (let y = 0; y < 12; y += 2) {
-      for (let x = 0; x < 14; x += 2) {
-        if (inBase(x, y) && inBase(x + 1, y) && inBase(x, y + 1) && inBase(x + 1, y + 1)) fn(x, y, 2, 2);
-        else for (const [i, j] of [[0, 0], [1, 0], [0, 1], [1, 1]]) if (inBase(x + i, y + j)) fn(x + i, y + j, 1, 1);
-      }
-    }
-  };
-  cells((x, y, w, d) => add(x, y, 0, w, d, BRICK, COL.sandSide, flat));
-
-  // 2. Superficie: mar al frente, espuma y arena.
-  next();
-  const foamY = (x) => 2 + (hash(x, 3) > 0.5 ? 1 : 0);
-  cells((x, y, w, d) => {
-    for (let i = 0; i < w; i++) {
-      for (let j = 0; j < d; j++) {
-        const cx = x + i;
-        const cy = y + j;
-        const f = foamY(cx);
-        if (cy < f - 1) add(cx, cy, BRICK, 1, 1, PLATE, hash(cx, cy) > 0.5 ? COL.water : COL.waterDeep, flat);
-        else if (cy === f - 1) add(cx, cy, BRICK, 1, 1, PLATE, COL.foam, flat);
-        else add(cx, cy, BRICK, 1, 1, PLATE, COL.sand);
-      }
-    }
-  });
-  const BZ = BRICK + PLATE;
-
-  // 3. Plataforma de madera y terraza.
-  next();
-  for (let x = 3; x < 11; x += 2) for (let y = 4; y < 10; y += 2) add(x, y, BZ, 2, 2, 2 * PLATE, COL.woodDark);
-  next();
-  const FZ = BZ + 2 * PLATE;
-  for (let x = 3; x < 11; x += 2) add(x, 4, FZ, 2, 2, PLATE, COL.wood);
-  const DZ = FZ + PLATE;
-
-  // 4. Muros (puerta al centro, ventanas al frente y a los lados).
-  next();
-  ring(3, 11, 6, 10, FZ, 3, [
-    { x0: 6, x1: 8, y0: 6, y1: 7, c: [0, 1] },
-    { x0: 4, x1: 5, y0: 6, y1: 7, c: [1] },
-    { x0: 9, x1: 10, y0: 6, y1: 7, c: [1] },
-    { x0: 3, x1: 4, y0: 7, y1: 9, c: [1] },
-    { x0: 10, x1: 11, y0: 7, y1: 9, c: [1] },
-  ], COL.wall);
-
-  // 5. Puerta, ventanas con marco blanco y esquineros.
-  next();
-  const W1 = FZ + BRICK;
-  add(6.1, 6.3, FZ, 1.8, 0.4, 2 * BRICK, COL.wood, flat);
-  add(6.45, 6.2, FZ + 1.3, 1.1, 0.12, 0.9, COL.glass, { glow: true });
-  for (const x of [4, 9]) {
-    add(x + 0.1, 6.35, W1, 0.8, 0.3, BRICK, COL.glass, { glow: true });
-    add(x - 0.2, 5.8, W1 - 0.15, 1.4, 0.25, 0.15, COL.trim, flat);
-    add(x - 0.2, 5.8, W1 + BRICK, 1.4, 0.25, 0.15, COL.trim, flat);
-    add(x - 0.2, 5.8, W1, 0.2, 0.25, BRICK, COL.trim, flat);
-    add(x + 1.0, 5.8, W1, 0.2, 0.25, BRICK, COL.trim, flat);
-    add(x + 0.42, 5.75, W1, 0.16, 0.2, BRICK, COL.trim, flat);
-  }
-  for (const x of [3, 10]) add(x + 0.35, 7, W1, 0.3, 2, BRICK, COL.glass, { glow: true });
-  for (const x of [2.85, 10.9]) add(x, 5.85, FZ, 0.25, 0.25, 3 * BRICK, COL.trim, flat);
-
-  // 6. Techo de dos aguas (cumbrera de frente a fondo) con frontón verde.
-  next();
-  const RZ = FZ + 3 * BRICK;
-  const LH = 0.5;
-  for (let k = 0; k < 8; k++) {
-    const z = RZ + k * LH;
-    const color = k % 2 ? COL.roofAlt : COL.roof;
-    const cuts = k % 2 ? [5.4, 6.4, 8.4, 10.6] : [5.4, 7.4, 9.4, 10.6];
-    for (const xs of [2.4 + 0.5 * k, 10.6 - 0.5 * k]) {
-      for (let i = 0; i < cuts.length - 1; i++) add(xs, cuts[i], z, 1, cuts[i + 1] - cuts[i], LH, color, flat);
-    }
-    const f0 = 3.4 + 0.5 * k;
-    const f1 = 10.6 - 0.5 * k;
-    if (f1 - f0 > 0.05) add(f0, 6, z, f1 - f0, 4, LH, COL.wall, flat);
-  }
-  add(6.4, 5.4, RZ + 8 * LH, 1.2, 5.2, LH, COL.roofAlt);
-
-  // 7. Ventana redonda del frontón.
-  next();
-  add(6.4, 5.8, RZ + 0.6, 1.2, 0.2, 1.2, COL.wood, flat);
-  add(6.6, 5.72, RZ + 0.8, 0.8, 0.1, 0.8, COL.glass, { glow: true });
-
-  // 8. Barandales y escalones de la terraza.
-  next();
-  const post = (x, y) => add(x, y, DZ, 0.22, 0.22, 1.1, COL.wood, flat);
-  for (const x of [3.05, 3.85, 4.65, 5.45]) post(x, 4.05);
-  for (const x of [8.35, 9.15, 9.95, 10.75]) post(x, 4.05);
-  for (const y of [4.85, 5.65]) {
-    post(3.05, y);
-    post(10.75, y);
-  }
-  add(3, 4, DZ + 1.1, 2.7, 0.3, 0.2, COL.wood, flat);
-  add(8.3, 4, DZ + 1.1, 2.7, 0.3, 0.2, COL.wood, flat);
-  add(3, 4, DZ + 1.1, 0.3, 2, 0.2, COL.wood, flat);
-  add(10.7, 4, DZ + 1.1, 0.3, 2, 0.2, COL.wood, flat);
-  add(6, 3, BZ, 2, 1, 2 * PLATE, COL.woodDark, flat);
-  add(6, 3, BZ + 2 * PLATE, 2, 1, 0.15, COL.wood, flat);
-  add(6, 2, BZ, 2, 1, PLATE, COL.woodDark, flat);
-  add(6, 2, BZ + PLATE, 2, 1, 0.15, COL.wood, flat);
-
-  // 9. Palmeras.
-  next();
-  const palm = (x, y, n, lean) => {
-    let px = x;
-    let py = y;
-    for (let i = 0; i < n; i++) {
-      add(px, py, BZ + i * BRICK, 0.8, 0.8, BRICK, i % 2 ? COL.trunk : COL.trunkDark, flat);
-      px += (lean[0] * i) / n;
-      py += (lean[1] * i) / n;
-    }
-    const tz = BZ + n * BRICK;
-    const cx = px + 0.4;
-    const cy = py + 0.4;
-    add(cx - 0.9, cy - 0.9, tz, 1.8, 1.8, PLATE, COL.leafDark, flat);
-    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1], [0.72, 0.72], [-0.72, 0.72], [0.72, -0.72], [-0.72, -0.72]];
-    dirs.forEach(([dx, dy], k) => {
-      const w = Math.abs(dy) < 0.1 ? 1.4 : Math.abs(dx) < 0.1 ? 0.8 : 1.0;
-      const d = Math.abs(dx) < 0.1 ? 1.4 : Math.abs(dy) < 0.1 ? 0.8 : 1.0;
-      for (let i = 0; i < 3; i++) {
-        const r = 1.3 + i * 1.0;
-        add(cx + dx * r - w / 2, cy + dy * r - d / 2, tz + 0.1 - i * 0.42, w, d, 0.22, (k + i) % 2 ? COL.leaf : COL.leafDark, flat);
-      }
-    });
-  };
-  palm(0.8, 8.6, 8, [-0.25, 0.1]);
-  palm(1.2, 4.6, 6, [-0.3, -0.12]);
-  palm(12.2, 8.4, 9, [0.25, 0.12]);
-  palm(12.3, 5.2, 7, [0.32, -0.1]);
-
-  // 10. Arbustos y piedritas.
-  next();
-  const bush = (x, y, s) => {
-    add(x, y, BZ, 1.4 * s, 1.2 * s, 0.7 * s, COL.bush, flat);
-    add(x + 0.3 * s, y + 0.2 * s, BZ + 0.7 * s, 0.9 * s, 0.8 * s, 0.5 * s, COL.bushLight, flat);
-  };
-  bush(1.6, 3.3, 1.1);
-  bush(2.1, 6.4, 0.9);
-  bush(11.1, 3.5, 1.0);
-  bush(11.3, 6.6, 0.9);
-  bush(1.5, 10.1, 1.0);
-  for (const [x, y] of [[1.1, 2.7], [3.6, 3.2], [9.6, 2.9], [12.6, 3.4], [5.2, 2.9]]) add(x, y, BZ, 0.45, 0.45, 0.3, COL.pebble, flat);
-
-  bricks.sort((a, b) => a.group - b.group || a.z - b.z || b.y - a.y || a.x - b.x);
-
-  const pos = [];
-  const nor = [];
-  const quad = (a, b, c, d, n) => {
-    for (const v of [a, b, c, a, c, d]) {
-      pos.push(v[0], v[1], v[2]);
-      nor.push(n[0], n[1], n[2]);
-    }
-  };
-  const stud = (cx, cy, z) => {
-    const r = 0.3;
-    const h = 0.18;
-    const n = 8;
-    for (let k = 0; k < n; k++) {
-      const a0 = (k / n) * Math.PI * 2;
-      const a1 = ((k + 1) / n) * Math.PI * 2;
-      const p0 = [cx + r * Math.cos(a0), cy + r * Math.sin(a0)];
-      const p1 = [cx + r * Math.cos(a1), cy + r * Math.sin(a1)];
-      const am = (a0 + a1) / 2;
-      quad([p0[0], p0[1], z], [p1[0], p1[1], z], [p1[0], p1[1], z + h], [p0[0], p0[1], z + h], [Math.cos(am), Math.sin(am), 0]);
-      for (const v of [[cx, cy, z + h], [p0[0], p0[1], z + h], [p1[0], p1[1], z + h]]) {
-        pos.push(v[0], v[1], v[2]);
-        nor.push(0, 0, 1);
-      }
-    }
-  };
-  const G = 0.03;
-  let top = 0;
-  const items = bricks.map((b) => {
-    const start = pos.length / 3;
-    const g = Math.min(G, b.w * 0.2, b.d * 0.2);
-    const x0 = b.x + g;
-    const x1 = b.x + b.w - g;
-    const y0 = b.y + g;
-    const y1 = b.y + b.d - g;
-    const z0 = b.z;
-    const z1 = b.z + b.h - Math.min(0.015, b.h * 0.1);
-    quad([x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], [0, 0, 1]);
-    quad([x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [x1, y0, z0], [0, 0, -1]);
-    quad([x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], [0, -1, 0]);
-    quad([x1, y1, z0], [x0, y1, z0], [x0, y1, z1], [x1, y1, z1], [0, 1, 0]);
-    quad([x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [x1, y0, z1], [1, 0, 0]);
-    quad([x0, y1, z0], [x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [-1, 0, 0]);
-    if (b.studs && b.w >= 1 && b.d >= 1) {
-      for (let i = 0; i < Math.floor(b.w + 1e-6); i++) {
-        for (let j = 0; j < Math.floor(b.d + 1e-6); j++) stud(b.x + i + 0.5, b.y + j + 0.5, z1);
-      }
-    }
-    top = Math.max(top, b.z + b.h);
-    return { start, count: pos.length / 3 - start, color: b.color, glow: b.glow, top: b.z + b.h };
-  });
-  return { pos, nor, items, top, cx: 7, cy: 6 };
-}
-
-/** Avión de ~1.1 unidades de largo, nariz hacia +x. */
 function buildPlane() {
   const body = solid();
-  body.box(-0.5, -0.075, -0.07, 0.42, 0.075, 0.08);
-  body.box(0.42, -0.05, -0.045, 0.56, 0.05, 0.055);
-  body.box(-0.08, -0.55, -0.012, 0.14, 0.55, 0.018);
-  body.box(-0.5, -0.2, 0.0, -0.38, 0.2, 0.02);
-  const fin = solid();
-  fin.box(-0.52, -0.014, 0.06, -0.36, 0.014, 0.3);
-  return { body, fin };
+  const N = 10;
+  const stations = [[-0.56, 0.012, 0.035], [-0.4, 0.05, 0.015], [-0.15, 0.075, 0], [0.28, 0.075, 0], [0.44, 0.06, -0.004], [0.53, 0.03, -0.012], [0.57, 0.006, -0.016]];
+  const ringAt = ([x, r, z]) => Array.from({ length: N }, (_, i) => {
+    const a = (i / N) * Math.PI * 2;
+    return [x, r * Math.cos(a), z + r * Math.sin(a)];
+  });
+  for (let i = 0; i < stations.length - 1; i++) {
+    const A = ringAt(stations[i]);
+    const B = ringAt(stations[i + 1]);
+    for (let j = 0; j < N; j++) {
+      const k = (j + 1) % N;
+      body.quad(A[j], A[k], B[k], B[j]);
+    }
+  }
+  body.slab([[0.12, 0.06], [-0.1, 0.56], [-0.2, 0.56], [-0.1, 0.06]], -0.03, -0.012);
+  body.slab([[0.12, -0.06], [-0.1, -0.06], [-0.2, -0.56], [-0.1, -0.56]], -0.03, -0.012);
+  body.slab([[-0.4, 0.03], [-0.5, 0.2], [-0.55, 0.2], [-0.5, 0.03]], 0.02, 0.034);
+  body.slab([[-0.4, -0.03], [-0.5, -0.03], [-0.55, -0.2], [-0.5, -0.2]], 0.02, 0.034);
+  const accent = solid();
+  accent.slab([[-0.34, 0.05], [-0.5, 0.3], [-0.57, 0.3], [-0.53, 0.05]], -0.012, 0.012, ([x, h, z]) => [x, -z, h]);
+  accent.box(-0.02, 0.2, -0.085, 0.14, 0.27, -0.03);
+  accent.box(-0.02, -0.27, -0.085, 0.14, -0.2, -0.03);
+  return { body, accent };
 }
 
-/* ---------- Geometría ---------- */
+/* ---------- Geometría del mapa ---------- */
 
-function buildGeometry(data) {
+const decode = (enc) => {
+  const out = new Array(enc.length);
+  let x = 0;
+  let y = 0;
+  for (let i = 0; i < enc.length; i += 2) {
+    x += enc[i];
+    y += enc[i + 1];
+    out[i] = x;
+    out[i + 1] = y;
+  }
+  return out;
+};
+
+function buildMap(data) {
   const q = data.q;
-  const pos = [];
-  const nor = [];
-  const line = [];
+  const surf = [];
+  const snor = [];
+  const edges = new Map();
   const states = data.states.map((s) => {
-    const top = [];
-    const wall = [];
-    const wallN = [];
-    const lineStart = line.length / 3;
-    for (const p of s.p) {
-      const v = p.v;
-      const n = v.length / 2;
-      for (const i of p.t) top.push(v[i * 2] / q, v[i * 2 + 1] / q, 1);
-      const starts = [0, ...p.h, n];
-      for (let r = 0; r < starts.length - 1; r++) {
-        const a0 = starts[r];
-        const a1 = starts[r + 1];
-        for (let k = a0; k < a1; k++) {
-          const k2 = k + 1 < a1 ? k + 1 : a0;
-          const ax = v[k * 2] / q;
-          const ay = v[k * 2 + 1] / q;
-          const bx = v[k2 * 2] / q;
-          const by = v[k2 * 2 + 1] / q;
+    const topStart = surf.length / 3;
+    const tris = [];
+    const box = [Infinity, Infinity, -Infinity, -Infinity];
+    for (const poly of s.p) {
+      const flat = [];
+      const holes = [];
+      poly.forEach((enc, ri) => {
+        const r = decode(enc);
+        const n = r.length / 2;
+        if (ri) holes.push(flat.length / 2);
+        let a2 = 0;
+        for (let i = 0; i < n; i++) {
+          const j = (i + 1) % n;
+          a2 += r[i * 2] * r[j * 2 + 1] - r[j * 2] * r[i * 2 + 1];
+        }
+        const solidLeft = ri === 0 ? a2 > 0 : a2 < 0;
+        for (let i = 0; i < n; i++) {
+          const j = (i + 1) % n;
+          const ax = r[i * 2], ay = r[i * 2 + 1], bx = r[j * 2], by = r[j * 2 + 1];
+          flat.push(ax, ay);
+          // Una arista que aparece en un solo estado es costa o frontera internacional (lleva muro).
+          const key = ax < bx || (ax === bx && ay < by) ? `${ax},${ay},${bx},${by}` : `${bx},${by},${ax},${ay}`;
+          const e = edges.get(key);
+          if (e) {
+            e.n++;
+            continue;
+          }
           let nx = by - ay;
           let ny = ax - bx;
+          if (!solidLeft) {
+            nx = -nx;
+            ny = -ny;
+          }
           const L = Math.hypot(nx, ny) || 1;
-          nx /= L;
-          ny /= L;
-          wall.push(ax, ay, 0, bx, by, 0, bx, by, 1, ax, ay, 0, bx, by, 1, ax, ay, 1);
-          for (let j = 0; j < 6; j++) wallN.push(nx, ny, 0);
-          line.push(ax, ay, 1, bx, by, 1);
+          edges.set(key, { n: 1, ax: ax / q, ay: ay / q, bx: bx / q, by: by / q, nx: nx / L, ny: ny / L });
         }
+      });
+      const idx = earcut(flat, holes);
+      for (let k = 0; k < idx.length; k++) {
+        const x = flat[idx[k] * 2] / q;
+        const y = flat[idx[k] * 2 + 1] / q;
+        surf.push(x, y, SLAB);
+        snor.push(0, 0, 1);
+        tris.push(x, y);
+        if (x < box[0]) box[0] = x;
+        if (y < box[1]) box[1] = y;
+        if (x > box[2]) box[2] = x;
+        if (y > box[3]) box[3] = y;
       }
     }
-    const topStart = pos.length / 3;
-    pos.push(...top);
-    for (let i = 0; i < top.length / 3; i++) nor.push(0, 0, 1);
-    pos.push(...wall);
-    nor.push(...wallN);
-    return {
-      id: s.id,
-      name: s.name,
-      anchor: [s.c[0] / q, s.c[1] / q],
-      topStart,
-      topCount: top.length / 3,
-      solidCount: (top.length + wall.length) / 3,
-      lineStart,
-      lineCount: line.length / 3 - lineStart,
-    };
+    return { id: s.id, name: s.name, anchor: [s.c[0] / q, s.c[1] / q], topStart, topCount: surf.length / 3 - topStart, tris: new Float32Array(tris), box, src: s };
   });
-  return { pos, nor, line, states, mapH: data.h };
+
+  const zl = SLAB + 0.0004;
+  const wallStart = surf.length / 3;
+  const coast = [];
+  const border = [];
+  for (const e of edges.values()) {
+    if (e.n > 1) {
+      border.push(e.ax, e.ay, zl, e.bx, e.by, zl);
+      continue;
+    }
+    surf.push(e.ax, e.ay, 0, e.bx, e.by, 0, e.bx, e.by, SLAB, e.ax, e.ay, 0, e.bx, e.by, SLAB, e.ax, e.ay, SLAB);
+    for (let k = 0; k < 6; k++) snor.push(e.nx, e.ny, 0);
+    coast.push(e.ax, e.ay, zl, e.bx, e.by, zl);
+  }
+  const wall = [wallStart, surf.length / 3 - wallStart];
+
+  const landStart = surf.length / 3;
+  for (const poly of data.land || []) {
+    const flat = [];
+    const holes = [];
+    poly.forEach((enc, ri) => {
+      const r = decode(enc);
+      if (ri) holes.push(flat.length / 2);
+      for (let i = 0; i < r.length; i++) flat.push(r[i]);
+    });
+    const idx = earcut(flat, holes);
+    for (let k = 0; k < idx.length; k++) {
+      surf.push(flat[idx[k] * 2] / q, flat[idx[k] * 2 + 1] / q, 0);
+      snor.push(0, 0, 1);
+    }
+  }
+  const land = [landStart, surf.length / 3 - landStart];
+
+  return { surf: new Float32Array(surf), snor: new Float32Array(snor), states, wall, land, coast, border };
 }
 
-const VS = `attribute vec3 aPos;attribute vec3 aNor;
-uniform mat4 uProj;uniform mat4 uMV;uniform mat3 uNorm;uniform float uH;uniform float uZ0;uniform vec2 uOff;
-varying vec3 vN;varying vec3 vP;
-void main(){vec3 p=vec3(aPos.xy+uOff,uZ0+aPos.z*uH);vec4 w=uMV*vec4(p,1.0);vP=w.xyz;vN=uNorm*aNor;gl_Position=uProj*w;}`;
+/** Contorno de un estado (para el foco), como segmentos. */
+function outlineOf(state, q) {
+  const segs = [];
+  const z = SLAB + 0.0008;
+  for (const poly of state.src.p) {
+    for (const enc of poly) {
+      const r = decode(enc);
+      const n = r.length / 2;
+      for (let i = 0; i < n; i++) {
+        const j = (i + 1) % n;
+        segs.push(r[i * 2] / q, r[i * 2 + 1] / q, z, r[j * 2] / q, r[j * 2 + 1] / q, z);
+      }
+    }
+  }
+  return segs;
+}
 
-const FS = `precision mediump float;varying vec3 vN;varying vec3 vP;
-uniform vec3 uColor;uniform vec3 uLight;uniform float uAmb;uniform float uKey;uniform float uSpec;uniform float uRim;
-uniform float uFlat;uniform vec4 uFlatColor;
-void main(){
-vec3 n=normalize(vN);vec3 v=normalize(-vP);vec3 L=normalize(uLight);
-float d=max(dot(n,L),0.0);
-float s=pow(max(dot(n,normalize(L+v)),0.0),40.0)*uSpec;
-float r=pow(1.0-clamp(dot(n,v),0.0,1.0),3.0)*uRim;
-vec3 col=uColor*(uAmb+d*uKey)+vec3(s+r);
-gl_FragColor=mix(vec4(col,1.0),uFlatColor,uFlat);}`;
+/** Segmentos → franjas (6 vértices por segmento: A, B, lado, extremo). */
+function lineVerts(segs, out = null) {
+  const n = segs.length / 6;
+  const v = out || new Float32Array(n * 48);
+  const corners = [0, -1, 0, 1, 1, 1, 0, -1, 1, 1, 1, -1];
+  let o = 0;
+  for (let i = 0; i < n; i++) {
+    const s = i * 6;
+    for (let c = 0; c < 12; c += 2) {
+      v[o++] = segs[s]; v[o++] = segs[s + 1]; v[o++] = segs[s + 2];
+      v[o++] = segs[s + 3]; v[o++] = segs[s + 4]; v[o++] = segs[s + 5];
+      v[o++] = corners[c + 1];
+      v[o++] = corners[c];
+    }
+  }
+  return v;
+}
+
+/* ---------- Shaders ---------- */
+
+const HP = `#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+`;
+
+const VS = `attribute vec3 aPos;attribute vec3 aNor;
+uniform mat4 uProj;uniform mat4 uView;uniform mat4 uModel;uniform mat3 uNM;
+varying vec3 vW;varying vec3 vN;varying vec2 vL;
+void main(){vec4 w=uModel*vec4(aPos,1.0);vW=w.xyz;vN=uNM*aNor;vL=aPos.xy;gl_Position=uProj*uView*w;}`;
+
+// uMode: 1 sólido con luz (uColor) · 2 plano (uFlat) · 3 punto con halo.
+const FS = `${HP}varying vec3 vW;varying vec3 vN;varying vec2 vL;
+uniform float uMode;uniform vec3 uColor;uniform vec4 uFlat;uniform vec3 uSun;uniform vec3 uEye;uniform vec3 uBg;
+uniform float uAmb;uniform float uKey;uniform vec2 uFog;
+void main(){float fog=smoothstep(uFog.x,uFog.y,length(uEye-vW));
+if(uMode>2.5){float r=length(vL)*2.0;float a=max(1.0-smoothstep(0.36,0.46,r),(1.0-smoothstep(0.46,1.0,r))*0.3);
+gl_FragColor=vec4(uFlat.rgb,uFlat.a*a*(1.0-fog));return;}
+if(uMode>1.5){gl_FragColor=vec4(mix(uFlat.rgb,uBg,fog),uFlat.a);return;}
+vec3 N=normalize(vN);vec3 V=normalize(uEye-vW);if(dot(N,V)<0.0)N=-N;
+float df=max(dot(N,uSun),0.0);float hemi=0.55+0.45*N.z;
+vec3 col=uColor*(uAmb*hemi+uKey*df);
+gl_FragColor=vec4(mix(col,uBg,fog),1.0);}`;
+
+// Líneas: cada segmento es una franja en pantalla con borde suavizado (grosor uWidth en píxeles).
+const LVS = `attribute vec3 aA;attribute vec3 aB;attribute float aSide;attribute float aEnd;
+uniform mat4 uVP;uniform vec2 uRes;uniform float uWidth;uniform float uNear;
+varying vec3 vW;varying float vD;
+void main(){vec4 a=uVP*vec4(aA,1.0);vec4 b=uVP*vec4(aB,1.0);vW=aEnd<0.5?aA:aB;vD=0.0;
+if(a.w<uNear||b.w<uNear){gl_Position=vec4(2.0,2.0,2.0,1.0);return;}
+vec2 d=b.xy/b.w*uRes-a.xy/a.w*uRes;float L=length(d);vec2 n=L>1e-4?vec2(-d.y,d.x)/L:vec2(0.0,1.0);
+vec4 p=aEnd<0.5?a:b;float hw=uWidth*0.5+1.0;p.xy+=n*aSide*hw/uRes*p.w;vD=aSide*hw;gl_Position=p;}`;
+const LFS = `${HP}varying vec3 vW;varying float vD;
+uniform vec4 uColor;uniform float uWidth;uniform vec3 uBg;uniform vec3 uEye;uniform vec2 uFog;
+void main(){float a=clamp(uWidth*0.5+0.5-abs(vD),0.0,1.0);float fog=smoothstep(uFog.x,uFog.y,length(uEye-vW));
+gl_FragColor=vec4(mix(uColor.rgb,uBg,fog),uColor.a*a*(1.0-fog));}`;
 
 /**
+ * Monta la escena en `canvas` (dentro del escenario sticky de `section`).
  * @param {object} o
- * @param {HTMLCanvasElement} o.canvas  lienzo que llena `stage`
- * @param {HTMLElement} o.section       sección alta (scroll)
- * @param {object} o.data               contenido de mexico-states.json
- * @param {() => boolean} o.isDark
- * @param {{el: HTMLElement | null, at: [number, number]}[]} [o.captions]  textos de la narración, visibles en su tramo de scroll
- * @param {HTMLElement | null} [o.tooltip]     etiqueta flotante para el estado bajo el cursor
- * @param {HTMLElement | null} [o.hint]        texto de ayuda: aparece con el último estado destacado
- * @param {{id: string, tone: 'ink'|'accent', at: number, el?: HTMLElement | null, place?: string}[]} [o.highlights]
- * @param {{home: string, from?: string, dest: string}} [o.journey]  estado de origen, lugar de la casa y destino del avión (claves de data.places)
- * @param {boolean} [o.reducedMotion]  true si el visitante pidió reducir movimiento
+ * @param {{ el: HTMLElement | null, at: [number, number] }[]} [o.captions] textos (y el velo) con su tramo.
+ * @param {{ el: HTMLElement | null, at: [number, number] }[]} [o.segments] barras de progreso con su tramo.
+ * @param {{ id: string, at: number, el?: HTMLElement | null, place?: string }[]} [o.highlights] estados que se alzan.
+ * @param {{ home: string, from?: string, dest?: string, destState?: string } | null} [o.journey] ruta del avión.
  */
-export function mountMexico({ canvas, section, data, isDark, captions = [], tooltip, hint, highlights = [], journey = null, reducedMotion = false }) {
+export function mountMexico({ canvas, section, data, isDark, captions = [], segments = [], rail = null, tooltip = null, highlights = [], journey = null, reducedMotion = false }) {
+  if (!data || data.v !== 2) {
+    console.warn('mexico-scene: se esperaba /geo/mexico-states.json v2');
+    return null;
+  }
   let gl = null;
   try {
-    gl = canvas.getContext('webgl', { antialias: true, alpha: true, premultipliedAlpha: true, powerPreference: 'low-power' });
+    gl = canvas.getContext('webgl', { antialias: true, alpha: false, powerPreference: 'high-performance' });
   } catch {
     gl = null;
   }
   if (!gl) return null;
 
+  const lite = window.matchMedia('(max-width: 767px), (pointer: coarse)').matches;
+  const msaa = !!(gl.getContextAttributes() || {}).antialias && gl.getParameter(gl.SAMPLES) > 0;
+  const compile = (type, src) => {
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, src);
+    gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh) || 'shader');
+    return sh;
+  };
+  const link = (vs, fs, attrs) => {
+    const p = gl.createProgram();
+    gl.attachShader(p, compile(gl.VERTEX_SHADER, vs));
+    gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fs));
+    attrs.forEach((a, i) => gl.bindAttribLocation(p, i, a));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p) || 'link');
+    return p;
+  };
   let prog;
+  let lprog;
   try {
-    const compile = (type, src) => {
-      const sh = gl.createShader(type);
-      gl.shaderSource(sh, src);
-      gl.compileShader(sh);
-      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh) || 'shader');
-      return sh;
-    };
-    prog = gl.createProgram();
-    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
-    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return null;
-  } catch {
+    prog = link(VS, FS, ['aPos', 'aNor']);
+    lprog = link(LVS, LFS, ['aA', 'aB', 'aSide', 'aEnd']);
+  } catch (err) {
+    console.warn('mexico-scene', err);
     return null;
   }
+  const uni = (p, names) => Object.fromEntries(names.map((n) => [n, gl.getUniformLocation(p, n)]));
+  const u = uni(prog, ['uProj', 'uView', 'uModel', 'uNM', 'uMode', 'uColor', 'uFlat', 'uSun', 'uEye', 'uBg', 'uAmb', 'uKey', 'uFog']);
+  const lu = uni(lprog, ['uVP', 'uRes', 'uWidth', 'uNear', 'uColor', 'uBg', 'uEye', 'uFog']);
   gl.useProgram(prog);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-  const aPos = gl.getAttribLocation(prog, 'aPos');
-  const aNor = gl.getAttribLocation(prog, 'aNor');
-  gl.enableVertexAttribArray(aPos);
-  const u = {};
-  for (const name of ['uProj', 'uMV', 'uNorm', 'uH', 'uZ0', 'uOff', 'uColor', 'uLight', 'uAmb', 'uKey', 'uSpec', 'uRim', 'uFlat', 'uFlatColor']) {
-    u[name] = gl.getUniformLocation(prog, name);
-  }
-
-  const geo = buildGeometry(data);
-  const buffer = (arr) => {
+  const buffer = (arr, usage = gl.STATIC_DRAW) => {
     const b = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, b);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(arr), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, arr instanceof Float32Array ? arr : new Float32Array(arr), usage);
     return b;
   };
-  const posBuf = buffer(geo.pos);
-  const norBuf = buffer(geo.nor);
-  const lineBuf = buffer(geo.line);
+  const lines = (segs) => ({ buf: buffer(lineVerts(segs)), count: (segs.length / 6) * 6 });
+
+  const geo = buildMap(data);
   const states = geo.states;
+  const surfBuf = buffer(geo.surf);
+  const snorBuf = buffer(geo.snor);
+  const coastL = lines(geo.coast);
+  const borderL = lines(geo.border);
+  const quadBuf = buffer([-0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, 0.5, 0]);
+  const routeSegs = new Float32Array(ROUTE_DASHES * 6);
+  const routeVerts = new Float32Array(ROUTE_DASHES * 48);
+  const routeBuf = buffer(routeVerts, gl.DYNAMIC_DRAW);
+  const part = (s) => ({ pos: buffer(s.pos), nor: buffer(s.nor), count: s.pos.length / 3 });
+  const planeGeo = buildPlane();
+  const plane = { body: part(planeGeo.body), accent: part(planeGeo.accent) };
+
+  function stateAt(x, y) {
+    for (let i = 0; i < states.length; i++) {
+      const s = states[i];
+      if (x < s.box[0] || y < s.box[1] || x > s.box[2] || y > s.box[3]) continue;
+      const t = s.tris;
+      for (let k = 0; k < t.length; k += 6) {
+        const d1 = (x - t[k + 2]) * (t[k + 1] - t[k + 3]) - (t[k] - t[k + 2]) * (y - t[k + 3]);
+        const d2 = (x - t[k + 4]) * (t[k + 3] - t[k + 5]) - (t[k + 2] - t[k + 4]) * (y - t[k + 5]);
+        const d3 = (x - t[k]) * (t[k + 5] - t[k + 1]) - (t[k + 4] - t[k]) * (y - t[k + 1]);
+        if (!((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0))) return i;
+      }
+    }
+    return -1;
+  }
+
   const byKey = new Map();
   states.forEach((s, i) => {
     byKey.set(s.id, i);
     byKey.set(s.name, i);
   });
+  const find = (key) => (key && byKey.has(key) ? byKey.get(key) : -1);
+  const places = {};
+  for (const [k, v] of Object.entries(data.places || {})) places[k] = [v[0] / data.q, v[1] / data.q];
+  const shadeOf = states.map((_, i) => 0.96 + 0.08 * hash(i, 5));
 
-  const extra = new Float32Array(states.length);
-  const pinned = new Uint8Array(states.length);
-  const manual = new Map();
-  let marks = [];
+  // Ruta del avión: del pueblo (o del centro del estado de origen) al destino.
+  const homeIndex = find(journey && journey.home);
+  const town = journey && journey.from && places[journey.from] ? places[journey.from] : homeIndex >= 0 ? states[homeIndex].anchor : null;
+  const destPlace = journey && journey.dest && places[journey.dest] ? places[journey.dest] : null;
+  let destIndex = destPlace ? stateAt(destPlace[0], destPlace[1]) : -1;
+  if (destIndex < 0) destIndex = find(journey && journey.destState);
+  const dest = destPlace || (destIndex >= 0 ? states[destIndex].anchor : null);
+  const trip = !!(town && dest);
+  const homeC = homeIndex >= 0 ? states[homeIndex].anchor : town;
+  const destC = destIndex >= 0 ? states[destIndex].anchor : dest;
+
+  // Estados alzados: los muros y el contorno de cada uno se arman la primera vez que se alza.
+  const heights = new Float32Array(states.length);
+  const clicked = states.map(() => 0);
+  const clickK = states.map(() => 0);
+  const manual = states.map(() => null);
+  const wallCache = new Map();
+  const outlineCache = new Map();
+  function wallsOf(i) {
+    if (wallCache.has(i)) return wallCache.get(i);
+    const q = data.q;
+    const pos = [];
+    const nor = [];
+    for (const poly of states[i].src.p) {
+      poly.forEach((enc, ri) => {
+        const r = decode(enc);
+        const n = r.length / 2;
+        let a2 = 0;
+        for (let k = 0; k < n; k++) {
+          const j = (k + 1) % n;
+          a2 += r[k * 2] * r[j * 2 + 1] - r[j * 2] * r[k * 2 + 1];
+        }
+        const solidLeft = ri === 0 ? a2 > 0 : a2 < 0;
+        for (let k = 0; k < n; k++) {
+          const j = (k + 1) % n;
+          const ax = r[k * 2] / q, ay = r[k * 2 + 1] / q, bx = r[j * 2] / q, by = r[j * 2 + 1] / q;
+          let nx = by - ay;
+          let ny = ax - bx;
+          if (!solidLeft) {
+            nx = -nx;
+            ny = -ny;
+          }
+          const L = Math.hypot(nx, ny) || 1;
+          pos.push(ax, ay, 0, bx, by, 0, bx, by, 1, ax, ay, 0, bx, by, 1, ax, ay, 1);
+          for (let m = 0; m < 6; m++) nor.push(nx / L, ny / L, 0);
+        }
+      });
+    }
+    const w = { pos: buffer(pos), nor: buffer(nor), count: pos.length / 3 };
+    wallCache.set(i, w);
+    return w;
+  }
+  function outlineL(i) {
+    if (!outlineCache.has(i)) outlineCache.set(i, lines(outlineOf(states[i], data.q)));
+    return outlineCache.get(i);
+  }
+
+  // Nacimiento: al salir del negro, cada estado brota de su centro con un rebote, del centro del país
+  // hacia afuera. Solo se dibuja México.
+  const BIRTH = 0.6;
+  const backOut = (t) => 1 + 2.70158 * Math.pow(t - 1, 3) + 1.70158 * Math.pow(t - 1, 2);
+  const birthDelay = (() => {
+    const d = states.map((s) => Math.hypot(s.anchor[0], s.anchor[1]));
+    const max = Math.max(...d, 1e-6);
+    return d.map((v, i) => 0.6 * (v / max) + 0.12 * hash(i, 9));
+  })();
+  const BIRTH_END = Math.max(...birthDelay) + BIRTH;
+  let birthT0 = null;
+  if (!reducedMotion) states.forEach((_, i) => wallsOf(i));
+
+  let hl = [];
+  function setHL(list) {
+    hl = (list || [])
+      .map((h) => {
+        const i = find(h.id);
+        const at = h.place && places[h.place] ? places[h.place] : i >= 0 ? states[i].anchor : null;
+        return { i, at, rise: Number.isFinite(h.at) ? h.at : 0, el: h.el || null };
+      })
+      .filter((h) => h.i >= 0 && h.at);
+  }
+  setHL(highlights);
+
   let W = 1;
   let H = 1;
+  let dpr = 1;
   let raf = 0;
   let alive = true;
   let last = performance.now();
   let pointer = null;
   let hovered = -1;
   let pick = null;
-
-  function setHighlights(list) {
-    marks = (list || [])
-      .map((h) => ({ ...h, index: byKey.has(h.id) ? byKey.get(h.id) : -1 }))
-      .filter((h) => h.index >= 0);
-    kick();
-  }
-  setHighlights(highlights);
-
-  const part = (s) => ({ pos: buffer(s.pos), nor: buffer(s.nor), count: s.pos.length / 3 });
-  const dioGeo = buildDiorama();
-  const diorama = { pos: buffer(dioGeo.pos), nor: buffer(dioGeo.nor), items: dioGeo.items, cx: dioGeo.cx, cy: dioGeo.cy };
-  const HOUSE_LIFT = dioGeo.top * STUD;
-  const planeGeo = buildPlane();
-  const plane = { body: part(planeGeo.body), fin: part(planeGeo.fin) };
-  const TRAIL = 64;
-  const trailBuf = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, trailBuf);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(TRAIL * 3), gl.DYNAMIC_DRAW);
-  const places = {};
-  for (const [k, v] of Object.entries(data.places || {})) places[k] = [v[0] / data.q, v[1] / data.q];
-  const homeIndex = journey && byKey.has(journey.home) ? byKey.get(journey.home) : -1;
-  const homeAt = journey && journey.from && places[journey.from] ? places[journey.from] : null;
-  const dest = journey && places[journey.dest] ? places[journey.dest] : null;
-  let ts = null;
-
-  gl.enable(gl.DEPTH_TEST);
-  gl.depthFunc(gl.LEQUAL);
-  gl.clearColor(0, 0, 0, 0);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  let pS = null;
+  let VP = identity();
+  const I4 = identity();
+  const I3 = rot3(I4);
 
   function measure() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dev = window.devicePixelRatio || 1;
+    const cap = lite ? 1.5 : 2;
+    dpr = msaa ? Math.min(dev, cap) : Math.min(Math.max(dev, cap), 2);
     W = Math.max(canvas.clientWidth, 1);
     H = Math.max(canvas.clientHeight, 1);
     canvas.width = Math.round(W * dpr);
@@ -631,6 +630,8 @@ export function mountMexico({ canvas, section, data, isDark, captions = [], tool
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     const rb = gl.createRenderbuffer();
     gl.bindRenderbuffer(gl.RENDERBUFFER, rb);
     gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, w, h);
@@ -643,10 +644,11 @@ export function mountMexico({ canvas, section, data, isDark, captions = [], tool
     return pick;
   }
 
+  /** Progreso 0–1 del tramo fijo (la sección mide más que la pantalla y su escenario es sticky). */
   function progress() {
     if (reducedMotion) return 1;
     const r = section.getBoundingClientRect();
-    return clamp01((window.innerHeight - r.top) / Math.max(section.offsetHeight, 1));
+    return clamp01(-r.top / Math.max(r.height - window.innerHeight, 1));
   }
 
   function visible() {
@@ -654,144 +656,195 @@ export function mountMexico({ canvas, section, data, isDark, captions = [], tool
     return r.bottom > 0 && r.top < window.innerHeight;
   }
 
-  function bindSolid() {
-    gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
-    gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(aNor);
-    gl.bindBuffer(gl.ARRAY_BUFFER, norBuf);
-    gl.vertexAttribPointer(aNor, 3, gl.FLOAT, false, 0, 0);
+  function bind(pos, nor) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, pos);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+    if (nor) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, nor);
+      gl.enableVertexAttribArray(1);
+      gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+    } else {
+      gl.disableVertexAttribArray(1);
+      gl.vertexAttrib3f(1, 0, 0, 1);
+    }
   }
-
-  function bindLines() {
-    gl.bindBuffer(gl.ARRAY_BUFFER, lineBuf);
-    gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 0, 0);
-    gl.disableVertexAttribArray(aNor);
-    gl.vertexAttrib3f(aNor, 0, 0, 1);
+  const setModel = (M, NM = I3) => {
+    gl.uniformMatrix4fv(u.uModel, false, M);
+    gl.uniformMatrix3fv(u.uNM, false, NM);
+  };
+  const solidColor = (c) => {
+    gl.uniform1f(u.uMode, 1);
+    gl.uniform3fv(u.uColor, c);
+  };
+  const flat = (c, a) => {
+    gl.uniform1f(u.uMode, 2);
+    gl.uniform4f(u.uFlat, c[0], c[1], c[2], a);
+  };
+  function drawLines(L, rgba, width, M = VP) {
+    if (!L || !L.count || rgba[3] <= 0.004) return;
+    gl.useProgram(lprog);
+    gl.uniformMatrix4fv(lu.uVP, false, M);
+    gl.bindBuffer(gl.ARRAY_BUFFER, L.buf);
+    for (let i = 0; i < 4; i++) gl.enableVertexAttribArray(i);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 32, 0);
+    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 32, 12);
+    gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 32, 24);
+    gl.vertexAttribPointer(3, 1, gl.FLOAT, false, 32, 28);
+    gl.uniform4f(lu.uColor, rgba[0], rgba[1], rgba[2], rgba[3]);
+    gl.uniform1f(lu.uWidth, width * dpr);
+    gl.drawArrays(gl.TRIANGLES, 0, L.count);
+    gl.disableVertexAttribArray(2);
+    gl.disableVertexAttribArray(3);
+    gl.useProgram(prog);
   }
-
-  function drawPart(p, color, M, Rn, MV, R) {
-    gl.bindBuffer(gl.ARRAY_BUFFER, p.pos);
-    gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(aNor);
-    gl.bindBuffer(gl.ARRAY_BUFFER, p.nor);
-    gl.vertexAttribPointer(aNor, 3, gl.FLOAT, false, 0, 0);
-    gl.uniformMatrix4fv(u.uMV, false, mul(MV, M));
-    gl.uniformMatrix3fv(u.uNorm, false, rot3(mul(R, Rn)));
-    gl.uniform3fv(u.uColor, color);
-    gl.drawArrays(gl.TRIANGLES, 0, p.count);
+  function drawDot(at, z, r, a, color) {
+    if (a <= 0.004) return;
+    bind(quadBuf, null);
+    gl.enable(gl.BLEND);
+    gl.depthMask(false);
+    gl.uniform1f(u.uMode, 3);
+    gl.uniform4f(u.uFlat, color[0], color[1], color[2], a);
+    setModel(mul(translation(at[0], at[1], z), scaling(r * 2, r * 2, 1)));
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
+    setModel(I4);
+  }
+  function drawPart(pt, color, M, Rp) {
+    bind(pt.pos, pt.nor);
+    setModel(M, rot3(Rp));
+    solidColor(color);
+    gl.drawArrays(gl.TRIANGLES, 0, pt.count);
   }
 
   function render(now) {
-    const dt = Math.min(0.05, (now - last) / 1000);
+    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
-    const time = reducedMotion ? 0 : now / 1000;
+    let busy = false;
     const tone = isDark() ? TONES.dark : TONES.light;
-    const raw = progress();
-    ts = ts === null || reducedMotion ? raw : ts + (raw - ts) * Math.min(1, dt * 6);
-    const t = ts;
-    const seg = (a, b) => smooth(clamp01((t - a) / (b - a)));
 
-    // Alturas: destacados ligados al scroll; hover y clic animados.
-    const amount = new Float32Array(states.length);
-    const toneOf = new Array(states.length);
-    for (const m of marks) {
-      amount[m.index] = Math.max(amount[m.index], smooth(clamp01((t - m.at) / 0.08)));
-      toneOf[m.index] = m.tone;
+    const target = progress();
+    pS = pS === null || reducedMotion ? target : pS + (target - pS) * Math.min(1, dt * 9);
+    if (Math.abs(target - pS) > 0.0004) busy = true;
+    else pS = target;
+    const p = pS;
+    const mapA = reducedMotion || p > PORTAL ? 1 : 0;
+    // El nacimiento se repite cada vez que el mapa sale del negro del portal (no al volver desde abajo).
+    if (mapA <= 0) birthT0 = null;
+    else if (birthT0 === null) birthT0 = reducedMotion || p > 0.2 ? -1e9 : now;
+    const bt = (now - birthT0) / 1000;
+    const birthing = bt < BIRTH_END;
+    if (birthing) busy = true;
+
+    // Alturas: las del guion siguen al scroll; las del clic tienen su propio ease.
+    heights.fill(0);
+    for (const h of hl) heights[h.i] = Math.max(heights[h.i], RAISE * smooth(clamp01((p - h.rise) / 0.05)));
+    for (let i = 0; i < states.length; i++) {
+      const k = clickK[i] + (clicked[i] - clickK[i]) * Math.min(1, dt * 7);
+      clickK[i] = Math.abs(clicked[i] - k) < 0.002 ? clicked[i] : k;
+      if (clickK[i] !== clicked[i]) busy = true;
+      heights[i] = Math.max(heights[i], RAISE * smooth(clickK[i]));
+      if (manual[i] !== null) heights[i] = manual[i];
     }
-    const heights = states.map((s, i) => {
-      const target = (i === hovered ? HOVER_H : 0) + (pinned[i] ? PIN_H : 0);
-      extra[i] += (target - extra[i]) * Math.min(1, dt * 9);
-      const m = manual.has(i) ? manual.get(i) : 0;
-      return BASE_H + amount[i] * RAISE_H + extra[i] + m;
-    });
 
-    // Recorrido: casa en el estado de origen, avión hacia el destino.
-    const home = homeIndex >= 0 ? homeAt || states[homeIndex].anchor : null;
-    const homeH = homeIndex >= 0 ? heights[homeIndex] : 0;
-    const destIndex = dest ? marks.find((m) => m.place === journey.dest)?.index ?? -1 : -1;
-    const destH = destIndex >= 0 ? heights[destIndex] : BASE_H;
-    const fly = seg(TL.fly[0], TL.fly[1]);
+    // Guion: México → Todos Santos → vuelo → Guadalajara → México.
+    const toHome = smooth(clamp01((p - 0.26) / 0.08));
+    const fly = smooth(clamp01((p - 0.47) / 0.16));
+    const toFlight = smooth(clamp01((p - 0.47) / 0.05));
+    const toDest = smooth(clamp01((p - 0.59) / 0.06));
+    const toEnd = smooth(clamp01((p - 0.78) / 0.08));
+
+    const topZ = SLAB + RAISE + 0.002;
+    const alt = (k) => topZ + FLIGHT_ALT * Math.sin(Math.PI * k);
     let planePos = null;
     let heading = 0;
     let pitch = 0;
-    if (home && dest) {
-      const dx = dest[0] - home[0];
-      const dy = dest[1] - home[1];
-      heading = Math.atan2(dy, dx);
-      const lift = HOUSE_LIFT;
-      const alt = (s) => lerp(homeH + lift, destH + 0.012, s) + FLIGHT_ALT * Math.sin(Math.PI * s);
-      planePos = [home[0] + dx * fly, home[1] + dy * fly, alt(fly)];
+    let rdx = 0;
+    let rdy = 0;
+    if (trip) {
+      rdx = dest[0] - town[0];
+      rdy = dest[1] - town[1];
+      heading = Math.atan2(rdy, rdx);
+      planePos = [town[0] + rdx * fly, town[1] + rdy * fly, alt(fly)];
       const e = 0.01;
-      pitch = Math.atan2(alt(Math.min(1, fly + e)) - alt(Math.max(0, fly - e)), Math.hypot(dx, dy) * 2 * e);
+      pitch = Math.atan2(alt(Math.min(1, fly + e)) - alt(Math.max(0, fly - e)), Math.hypot(rdx, rdy) * 2 * e);
     }
 
-    // Cámara por fases (distancia interpolada en escala logarítmica).
-    const FAR = { cx: 0, cy: 0, cz: 0, d: 10, tilt: 0, yaw: 0.55 };
-    const MEX = { cx: 0, cy: 0, cz: 0, d: 1, tilt: FINAL_TILT, yaw: -0.08 };
-    const mixCam = (a, b, k) => ({
-      cx: lerp(a.cx, b.cx, k), cy: lerp(a.cy, b.cy, k), cz: lerp(a.cz, b.cz, k), d: Math.exp(lerp(Math.log(a.d), Math.log(b.d), k)),
-      tilt: lerp(a.tilt, b.tilt, k), yaw: lerp(a.yaw, b.yaw, k),
-    });
-    const k1 = seg(TL.mexico[0], TL.mexico[1]);
-    let cam = mixCam(FAR, MEX, k1);
-    if (home && dest && !reducedMotion) {
-      // Acercamiento a la casa; mientras se arma, la cámara la rodea despacio.
-      const bp = smooth(clamp01((t - TL.build[0]) / (TL.build[1] - TL.build[0])));
-      const near = { cx: home[0], cy: home[1], cz: homeH + 0.018, d: lerp(0.12, 0.1, bp), tilt: lerp(1.05, 0.98, bp), yaw: lerp(0.7, 0.25, bp) };
-      cam = mixCam(cam, near, seg(TL.home[0], TL.home[1]));
-      const lead = 0.06;
-      const follow = {
-        cx: planePos[0] + Math.cos(heading) * lead, cy: planePos[1] + Math.sin(heading) * lead, cz: planePos[2] * 0.7,
-        d: 0.42 + 0.12 * Math.sin(Math.PI * fly), tilt: 0.92, yaw: Math.atan2(-(dest[1] - home[1]), dest[0] - home[0]),
-      };
-      cam = mixCam(cam, follow, seg(TL.out[0], TL.out[1]));
-      cam = mixCam(cam, MEX, seg(TL.final[0], TL.final[1]));
-    }
-    cam.yaw += Math.sin(time * 0.2) * 0.012 * k1;
-
+    // Encuadre: México ocupa ~52 % del ancho; los acercamientos usan distancias absolutas.
     const aspect = W / H;
     const tanH = Math.tan(FOV / 2);
-    const fit = Math.max(1 / (0.7 * tanH * aspect), (geo.mapH * 0.5 * Math.cos(FINAL_TILT) + 0.22) / (0.4 * tanH));
-    const dist = fit * cam.d;
-    // En los acercamientos el foco baja más para dejar aire a la etiqueta.
+    const fit = Math.max(1 / ((aspect > 1.1 ? 0.52 : 0.84) * tanH * aspect), (data.h * 0.5 * Math.cos(OVER_TILT) + 0.22) / (0.58 * tanH));
+    const near = (D) => (D * Math.max(1, 0.7 / aspect)) / fit;
+    const mixCam = (a, b, k) => ({
+      cx: lerp(a.cx, b.cx, k), cy: lerp(a.cy, b.cy, k), cz: lerp(a.cz, b.cz, k),
+      d: Math.exp(lerp(Math.log(a.d), Math.log(b.d), k)), tilt: lerp(a.tilt, b.tilt, k), yaw: lerp(a.yaw, b.yaw, k),
+    });
+    const O = { cx: 0.02, cy: 0, cz: 0, d: 1, tilt: OVER_TILT, yaw: -0.08 };
+    let cam = O;
+    // 0: textos arriba y México centrado · 1: textos a la izquierda y el sujeto a la derecha.
+    let sideK = 0;
+    if (trip) {
+      const Hc = { cx: lerp(homeC[0], town[0], 0.55), cy: lerp(homeC[1], town[1], 0.55), cz: SLAB, d: near(0.95), tilt: 0.92, yaw: -0.16 };
+      const Dc = { cx: lerp(destC[0], dest[0], 0.5), cy: lerp(destC[1], dest[1], 0.5), cz: SLAB, d: near(0.9), tilt: 0.95, yaw: 0.1 };
+      cam = mixCam(O, Hc, toHome);
+      sideK = toHome;
+      if (p > 0.47) {
+        const F = { cx: planePos[0], cy: planePos[1], cz: planePos[2] * 0.6, d: near(1.1 + 0.35 * Math.sin(Math.PI * fly)), tilt: 0.93, yaw: lerp(-0.16, 0.1, fly) };
+        cam = mixCam(mixCam(Hc, F, toFlight), Dc, toDest);
+      }
+      if (p > 0.78) {
+        cam = mixCam(Dc, O, toEnd);
+        sideK = 1 - toEnd;
+      }
+    }
     const close = clamp01((1 - cam.d) / 0.6);
-    const ty = -dist * tanH * lerp(0.3, 0.12, close);
+    const dist = fit * cam.d;
+    const side = W >= 768 && aspect > 1 ? 1 : 0;
     const R = mul(rot('x', -cam.tilt), rot('z', cam.yaw));
-    const MV = mul(R, translation(-cam.cx, -cam.cy, -cam.cz));
-    MV[13] += ty;
-    // Con la narración a la izquierda (pantallas anchas), el sujeto se recorre a la derecha.
-    const side = W >= 768 && aspect > 1.1 ? 1 : 0;
-    const focus = home && dest && !reducedMotion ? seg(TL.home[0], TL.home[1]) * (1 - seg(TL.final[0], TL.final[1])) : 0;
-    MV[12] += dist * tanH * aspect * 0.28 * side * focus;
-    MV[14] -= dist;
-    const N3 = rot3(R);
-    const P = perspective(FOV, aspect, Math.max(0.02, dist * 0.1), dist * 4 + 10);
+    const Vw = mul(R, translation(-cam.cx, -cam.cy, -cam.cz));
+    Vw[12] += dist * tanH * aspect * 0.3 * side * sideK;
+    Vw[13] -= dist * tanH * (side ? lerp(0.16, 0.08, sideK) : lerp(0.3, 0.42, close));
+    Vw[14] -= dist;
+    const nearZ = Math.max(0.004, dist * 0.08);
+    const P = perspective(FOV, aspect, nearZ, dist * 4 + 12);
+    const eye = [0, 1, 2].map((i) => -(Vw[i * 4] * Vw[12] + Vw[i * 4 + 1] * Vw[13] + Vw[i * 4 + 2] * Vw[14]));
+    VP = mul(P, Vw);
 
+    gl.useProgram(lprog);
+    gl.uniform2f(lu.uRes, canvas.width / 2, canvas.height / 2);
+    gl.uniform1f(lu.uNear, nearZ);
+    gl.uniform3fv(lu.uBg, tone.bg);
+    gl.uniform3fv(lu.uEye, eye);
+    gl.uniform2f(lu.uFog, dist * 1.7, dist * 5.5);
+    gl.useProgram(prog);
     gl.uniformMatrix4fv(u.uProj, false, P);
-    gl.uniformMatrix4fv(u.uMV, false, MV);
-    gl.uniformMatrix3fv(u.uNorm, false, N3);
-    gl.uniform3f(u.uLight, -0.35, 0.8, 0.5);
+    gl.uniformMatrix4fv(u.uView, false, Vw);
+    gl.uniform3fv(u.uSun, SUN);
+    gl.uniform3fv(u.uEye, eye);
+    gl.uniform3fv(u.uBg, tone.bg);
     gl.uniform1f(u.uAmb, tone.amb);
     gl.uniform1f(u.uKey, tone.key);
-    gl.uniform1f(u.uSpec, tone.spec);
-    gl.uniform1f(u.uRim, tone.rim);
+    setModel(I4);
 
-    // Selección por color (estado bajo el cursor).
-    if (pointer && k1 > 0.6) {
+    // Al inicio y al final (vistas generales) el cursor muestra el nombre del estado y un clic lo alza.
+    const interactive = !birthing && (reducedMotion || (p > 0.12 && p < 0.255) || p > 0.85);
+    if (pointer && interactive && mapA > 0.9) {
       const pk = ensurePick();
       gl.bindFramebuffer(gl.FRAMEBUFFER, pk.fb);
       gl.viewport(0, 0, pk.w, pk.h);
       gl.disable(gl.BLEND);
+      gl.enable(gl.DEPTH_TEST);
+      gl.clearColor(0, 0, 0, 1);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      gl.uniform1f(u.uFlat, 1);
-      gl.uniform2f(u.uOff, 0, 0);
-      gl.uniform1f(u.uZ0, 0);
-      bindSolid();
-      states.forEach((s, i) => {
-        gl.uniform4f(u.uFlatColor, (i + 1) / 255, 0, 0, 1);
-        gl.uniform1f(u.uH, heights[i]);
-        gl.drawArrays(gl.TRIANGLES, s.topStart, s.solidCount);
+      gl.uniform2f(u.uFog, 1e5, 2e5);
+      bind(surfBuf, snorBuf);
+      states.forEach((st, i) => {
+        flat([(i + 1) / 255, 0, 0], 1);
+        setModel(heights[i] > 0 ? translation(0, 0, heights[i]) : I4);
+        gl.drawArrays(gl.TRIANGLES, st.topStart, st.topCount);
       });
+      setModel(I4);
       const px = new Uint8Array(4);
       const x = Math.min(pk.w - 1, Math.max(0, Math.round(pointer.x)));
       const y = Math.min(pk.h - 1, Math.max(0, Math.round(pk.h - pointer.y - 1)));
@@ -804,175 +857,175 @@ export function mountMexico({ canvas, section, data, isDark, captions = [], tool
     canvas.style.cursor = hovered >= 0 ? 'pointer' : '';
 
     gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
+    gl.clearColor(tone.bg[0], tone.bg[1], tone.bg[2], 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    bindSolid();
+    gl.uniform2f(u.uFog, dist * 1.7, dist * 5.5);
 
-    if (tone.shadow > 0) {
-      gl.enable(gl.BLEND);
-      gl.disable(gl.DEPTH_TEST);
-      gl.uniform1f(u.uFlat, 1);
-      gl.uniform4f(u.uFlatColor, 0, 0, 0, tone.shadow * k1);
-      gl.uniform1f(u.uH, 0);
-      gl.uniform1f(u.uZ0, 0);
-      for (let j = 0; j < 6; j++) {
-        const k = 0.012 + j * 0.007;
-        gl.uniform2f(u.uOff, k * 0.7, -k);
-        states.forEach((s) => gl.drawArrays(gl.TRIANGLES, s.topStart, s.topCount));
+    const colorOf = (i) => {
+      const up = Math.min(1, heights[i] / RAISE);
+      const c0 = i === hovered ? tone.hover : tone.top;
+      return mix3([c0[0] * shadeOf[i], c0[1] * shadeOf[i], c0[2] * shadeOf[i]], tone.lit, up);
+    };
+    const popped = [];
+    if (birthing) {
+      // Cada estado crece desde su centro y da un salto: tapa, muros y contorno suben juntos.
+      for (let i = 0; i < states.length; i++) {
+        const k = clamp01((bt - birthDelay[i]) / BIRTH);
+        if (k <= 0) continue;
+        const st = states[i];
+        const e = backOut(k);
+        const lift = RAISE * 0.45 * Math.sin(Math.PI * Math.min(1, k * 1.15));
+        const sxy = 0.35 + 0.65 * e;
+        const XY = mul(mul(translation(st.anchor[0], st.anchor[1], 0), scaling(sxy, sxy, 1)), translation(-st.anchor[0], -st.anchor[1], 0));
+        const topM = mul(translation(0, 0, heights[i] + lift), mul(XY, scaling(1, 1, e)));
+        bind(surfBuf, snorBuf);
+        solidColor(colorOf(i));
+        setModel(topM);
+        gl.drawArrays(gl.TRIANGLES, st.topStart, st.topCount);
+        const w = wallsOf(i);
+        bind(w.pos, w.nor);
+        setModel(mul(XY, scaling(1, 1, Math.max(1e-5, SLAB * e + lift + heights[i]))));
+        solidColor(tone.wall);
+        gl.drawArrays(gl.TRIANGLES, 0, w.count);
+        popped.push([i, topM]);
       }
-      gl.disable(gl.BLEND);
-      gl.enable(gl.DEPTH_TEST);
-    }
-
-    gl.uniform1f(u.uFlat, 0);
-    gl.uniform2f(u.uOff, 0, 0);
-    gl.uniform1f(u.uZ0, 0);
-    states.forEach((s, i) => {
-      let c = i === hovered || pinned[i] ? tone.hover : tone.top;
-      if (amount[i] > 0) c = mix3(c, tone[toneOf[i]] || tone.accent, amount[i]);
-      gl.uniform3fv(u.uColor, c);
-      gl.uniform1f(u.uH, heights[i]);
-      gl.drawArrays(gl.TRIANGLES, s.topStart, s.solidCount);
-    });
-
-    bindLines();
-    gl.uniform1f(u.uFlat, 1);
-    gl.uniform4f(u.uFlatColor, tone.line[0], tone.line[1], tone.line[2], 1);
-    gl.uniform1f(u.uZ0, 0.0015);
-    states.forEach((s, i) => {
-      gl.uniform1f(u.uH, heights[i]);
-      gl.drawArrays(gl.LINES, s.lineStart, s.lineCount);
-    });
-
-    // Objetos: matrices propias, sin extrusión.
-    gl.uniform1f(u.uH, 1);
-    gl.uniform1f(u.uZ0, 0);
-    gl.uniform1f(u.uFlat, 0);
-
-    // Casa de playa: se arma pieza por pieza con el scroll; cada bloque cae y encaja.
-    let houseTop = 0;
-    if (home) {
-      const b = reducedMotion ? 1 : clamp01((t - TL.build[0]) / (TL.build[1] - TL.build[0]));
-      if (b > 0) {
-        const items = diorama.items;
-        const n = items.length;
-        const dur = 0.06;
-        const Rh = rot('z', HOUSE_YAW);
-        const M = mul(mul(mul(translation(home[0], home[1], homeH), Rh), scaling(STUD, STUD, STUD)), translation(-diorama.cx, -diorama.cy, 0));
-        gl.bindBuffer(gl.ARRAY_BUFFER, diorama.pos);
-        gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(aNor);
-        gl.bindBuffer(gl.ARRAY_BUFFER, diorama.nor);
-        gl.vertexAttribPointer(aNor, 3, gl.FLOAT, false, 0, 0);
-        gl.uniformMatrix4fv(u.uMV, false, mul(MV, M));
-        gl.uniformMatrix3fv(u.uNorm, false, rot3(mul(R, Rh)));
-        let placed = 0;
-        for (let i = 0; i < n; i++) {
-          const p = (b - (i / n) * (1 - dur)) / dur;
-          if (p <= 0) break;
-          const it = items[i];
-          const q = clamp01(p);
-          if (q >= 1) placed = Math.max(placed, it.top);
-          gl.uniform1f(u.uZ0, q < 1 ? DROP * Math.pow(1 - q, 3) : 0);
-          if (it.glow) {
-            gl.uniform1f(u.uFlat, 1);
-            gl.uniform4f(u.uFlatColor, it.color[0], it.color[1], it.color[2], 1);
-          } else {
-            gl.uniform1f(u.uFlat, 0);
-            gl.uniform3fv(u.uColor, it.color);
-          }
-          gl.drawArrays(gl.TRIANGLES, it.start, it.count);
-        }
-        gl.uniform1f(u.uZ0, 0);
-        gl.uniform1f(u.uFlat, 0);
-        houseTop = homeH + placed * STUD;
+    } else {
+      bind(surfBuf, snorBuf);
+      solidColor(tone.wall);
+      gl.drawArrays(gl.TRIANGLES, geo.wall[0], geo.wall[1]);
+      states.forEach((st, i) => {
+        solidColor(colorOf(i));
+        setModel(heights[i] > 0 ? translation(0, 0, heights[i]) : I4);
+        gl.drawArrays(gl.TRIANGLES, st.topStart, st.topCount);
+      });
+      for (let i = 0; i < states.length; i++) {
+        if (heights[i] < 0.0004) continue;
+        const w = wallsOf(i);
+        bind(w.pos, w.nor);
+        setModel(mul(translation(0, 0, SLAB), scaling(1, 1, heights[i])));
+        solidColor(tone.side);
+        gl.drawArrays(gl.TRIANGLES, 0, w.count);
       }
     }
+    setModel(I4);
 
-    // Ruta y avión.
-    if (planePos) {
-      const shown = fly > 0 || t >= TL.fly[0] - 0.04;
-      if (shown) {
-        const n = Math.max(2, Math.round(TRAIL * Math.max(fly, 0.001)));
-        const arr = new Float32Array(TRAIL * 3);
-        const dx = dest[0] - home[0];
-        const dy = dest[1] - home[1];
-        const lift = HOUSE_LIFT;
-        for (let i = 0; i < n; i++) {
-          const s = (i / (n - 1)) * fly;
-          arr[i * 3] = home[0] + dx * s;
-          arr[i * 3 + 1] = home[1] + dy * s;
-          arr[i * 3 + 2] = lerp(homeH + lift, destH + 0.012, s) + FLIGHT_ALT * Math.sin(Math.PI * s);
-        }
-        gl.bindBuffer(gl.ARRAY_BUFFER, trailBuf);
-        gl.bufferSubData(gl.ARRAY_BUFFER, 0, arr);
-        gl.vertexAttribPointer(aPos, 3, gl.FLOAT, false, 0, 0);
-        gl.disableVertexAttribArray(aNor);
-        gl.vertexAttrib3f(aNor, 0, 0, 1);
-        gl.uniformMatrix4fv(u.uMV, false, MV);
-        gl.uniform1f(u.uFlat, 1);
-        gl.uniform4f(u.uFlatColor, tone.accent[0], tone.accent[1], tone.accent[2], 1);
-        if (fly > 0) gl.drawArrays(gl.LINE_STRIP, 0, n);
-        gl.uniform1f(u.uFlat, 0);
+    // Líneas con antialiasing: fronteras, costa, contorno blanco de los estados alzados y la ruta punteada.
+    gl.enable(gl.BLEND);
+    gl.depthMask(false);
+    if (birthing) {
+      for (const [i, M] of popped) drawLines(outlineL(i), tone.border, 1, mul(VP, M));
+    } else {
+      drawLines(borderL, tone.border, 1);
+      drawLines(coastL, tone.coast, 1.2);
+    }
+    for (let i = 0; i < states.length; i++) {
+      if (heights[i] < 0.0004) continue;
+      drawLines(outlineL(i), [tone.ink[0], tone.ink[1], tone.ink[2], 0.85 * Math.min(1, heights[i] / RAISE)], 1.4, mul(VP, translation(0, 0, heights[i])));
+    }
+    if (trip && fly > 0) {
+      let n = 0;
+      for (let i = 0; i < ROUTE_DASHES; i++) {
+        const a0 = i / ROUTE_DASHES;
+        if (a0 >= fly) break;
+        const a1 = Math.min(fly, (i + 0.5) / ROUTE_DASHES);
+        routeSegs.set([town[0] + rdx * a0, town[1] + rdy * a0, alt(a0), town[0] + rdx * a1, town[1] + rdy * a1, alt(a1)], n * 6);
+        n++;
       }
-      const appear = seg(TL.fly[0] - 0.04, TL.fly[0]);
-      const vanish = 1 - seg(TL.fly[1] - 0.01, TL.fly[1] + 0.03);
+      if (n) {
+        lineVerts(routeSegs.subarray(0, n * 6), routeVerts);
+        gl.bindBuffer(gl.ARRAY_BUFFER, routeBuf);
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, routeVerts.subarray(0, n * 48));
+        drawLines({ buf: routeBuf, count: n * 6 }, [tone.ink[0], tone.ink[1], tone.ink[2], 0.95], 2);
+      }
+    }
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
+    if (trip) {
+      const zh = homeIndex >= 0 ? heights[homeIndex] : 0;
+      const zd = destIndex >= 0 ? heights[destIndex] : 0;
+      drawDot(town, SLAB + zh + 0.001, dist * 0.014, smooth(clamp01((p - 0.32) / 0.03)), tone.ink);
+      drawDot(dest, SLAB + zd + 0.001, dist * 0.014, smooth(clamp01((p - 0.62) / 0.03)), tone.ink);
+    }
+
+    // Avión: despega de Todos Santos y aterriza en Guadalajara.
+    if (trip && p > 0.47 && p < 0.66) {
+      const appear = smooth(clamp01((p - 0.47) / 0.015));
+      const vanish = 1 - smooth(clamp01((p - 0.63) / 0.02));
       const sc = PLANE_SIZE * appear * vanish;
       if (sc > 0.0001) {
-        const bank = Math.sin(time * 1.4) * 0.08 * Math.sin(Math.PI * fly);
-        const Rp = mul(mul(rot('z', heading), rotY(-pitch)), rot('x', bank));
-        const M = mul(mul(translation(planePos[0], planePos[1], planePos[2] + (1 - appear) * 0.02), Rp), scaling(sc, sc, sc));
-        drawPart(plane.body, tone.objBody, M, Rp, MV, R);
-        drawPart(plane.fin, tone.accent, M, Rp, MV, R);
+        const Rp = mul(rot('z', heading), rot('y', -pitch));
+        const gi = stateAt(planePos[0], planePos[1]);
+        const ground = gi >= 0 ? SLAB + heights[gi] : 0;
+        if (planePos[2] > ground + 0.002) {
+          gl.enable(gl.BLEND);
+          gl.depthMask(false);
+          bind(plane.body.pos, null);
+          setModel(mul(mul(translation(planePos[0], planePos[1], ground + 0.0008), rot('z', heading)), scaling(sc, sc, 0)));
+          flat([0, 0, 0], tone.planeShadow * appear * vanish);
+          gl.drawArrays(gl.TRIANGLES, 0, plane.body.count);
+          gl.depthMask(true);
+          gl.disable(gl.BLEND);
+        }
+        const M = mul(mul(translation(planePos[0], planePos[1], planePos[2]), Rp), scaling(sc, sc, sc));
+        drawPart(plane.body, tone.plane, M, Rp);
+        drawPart(plane.accent, tone.planeAccent, M, Rp);
+        setModel(I4);
       }
     }
 
-    // Capas HTML: lienzo, título, etiquetas, ayuda y tooltip.
-    canvas.style.opacity = String(smooth(clamp01((t - 0.02) / 0.1)));
-    for (const c of captions) {
-      if (!c.el) continue;
-      const fin = seg(c.at[0], c.at[0] + 0.025);
-      const fout = c.at[1] >= 1 ? 0 : seg(c.at[1] - 0.025, c.at[1]);
-      const a = fin * (1 - fout);
-      c.el.style.opacity = String(a);
-      c.el.style.transform = `translateY(${((1 - fin) * 16 - fout * 16).toFixed(1)}px)`;
-      c.el.style.visibility = a > 0.001 ? 'visible' : 'hidden';
-    }
-    const project = (x, y, h) => {
-      const v = transform(MV, x, y, h);
-      const c = transform(P, v[0], v[1], v[2]);
-      return [(c[0] / c[3] * 0.5 + 0.5) * W, (0.5 - (c[1] / c[3]) * 0.5) * H];
+    // Capas HTML.
+    canvas.style.opacity = String(mapA);
+    const F = 0.02;
+    captions.forEach((c) => {
+      if (!c.el || !c.at) return;
+      const [a, b] = c.at;
+      const fin = smooth(clamp01((p - a) / F));
+      const fout = b > 1 ? 0 : smooth(clamp01((p - (b - F)) / F));
+      const o = reducedMotion ? (b > 1 ? 1 : 0) : fin * (1 - fout) * mapA;
+      c.el.style.opacity = o.toFixed(3);
+      c.el.style.transform = `translateY(${((1 - fin) * 10).toFixed(1)}px)`;
+      c.el.style.visibility = o > 0.001 ? 'visible' : 'hidden';
+    });
+    if (rail) rail.style.opacity = (reducedMotion ? 0 : mapA).toFixed(3);
+    segments.forEach((sg) => {
+      if (!sg.el || !sg.at) return;
+      const [a, b] = sg.at;
+      sg.el.style.transform = `scaleX(${clamp01((p - a) / Math.max(b - a, 1e-4)).toFixed(4)})`;
+    });
+
+    const project = (x, yy, z) => {
+      const c = transform(VP, x, yy, z);
+      return [(c[0] / c[3] * 0.5 + 0.5) * W, (0.5 - (c[1] / c[3]) * 0.5) * H, c[3]];
     };
-    let lastAmount = 0;
-    for (const m of marks) {
-      const a = amount[m.index];
-      lastAmount = a;
-      if (!m.el) continue;
-      const s = states[m.index];
-      let at = s.anchor;
-      let h = heights[m.index];
-      if (m.index === homeIndex && houseTop) h = houseTop;
-      if (m.place && places[m.place]) at = places[m.place];
-      const [x, y] = project(at[0], at[1], h);
-      m.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
-      m.el.style.opacity = String(a);
+    const place = (el, at, a) => {
+      const [x, yy, w] = project(at[0], at[1], at[2]);
+      const on = w > 0 && x > -80 && x < W + 80 && yy > -80 && yy < H + 80;
+      el.style.transform = `translate(${x.toFixed(1)}px, ${yy.toFixed(1)}px)`;
+      el.style.opacity = on ? a.toFixed(3) : '0';
+    };
+    for (const h of hl) {
+      if (!h.el) continue;
+      const a = (reducedMotion ? 1 : smooth(clamp01((p - h.rise - 0.03) / 0.03))) * mapA;
+      place(h.el, [h.at[0], h.at[1], SLAB + heights[h.i] + 0.001], a);
     }
-    if (hint) hint.style.opacity = String(lastAmount);
     if (tooltip) {
-      const show = hovered >= 0 && !marks.some((m) => m.index === hovered && m.el);
-      if (show && pointer) {
+      const show = hovered >= 0 && !!pointer;
+      if (show) {
         tooltip.textContent = states[hovered].name;
         tooltip.style.transform = `translate(${(pointer.x + 14).toFixed(0)}px, ${(pointer.y + 18).toFixed(0)}px)`;
       }
       tooltip.style.opacity = show ? '1' : '0';
     }
+    return busy;
   }
 
   function frame(now) {
     raf = 0;
     if (!alive) return;
-    const on = visible();
-    if (on) render(now);
-    if (on && !document.hidden) raf = requestAnimationFrame(frame);
+    const busy = visible() ? render(now) : false;
+    if (busy && !document.hidden) raf = requestAnimationFrame(frame);
   }
 
   function kick() {
@@ -990,9 +1043,12 @@ export function mountMexico({ canvas, section, data, isDark, captions = [], tool
   };
   const onLeave = () => {
     pointer = null;
+    kick();
   };
   const onClick = () => {
-    if (hovered >= 0) pinned[hovered] = pinned[hovered] ? 0 : 1;
+    if (hovered < 0) return;
+    clicked[hovered] = clicked[hovered] ? 0 : 1;
+    kick();
   };
 
   measure();
@@ -1005,16 +1061,24 @@ export function mountMexico({ canvas, section, data, isDark, captions = [], tool
   canvas.addEventListener('click', onClick);
 
   return {
-    /** Altura extra (unidades del mapa; el ancho de México = 2) para un estado, por id ISO o nombre. */
+    /** Alza un estado a mano (id ISO o nombre); `null` lo devuelve al guion. */
     setHeight(key, value) {
-      if (!byKey.has(key)) return;
-      manual.set(byKey.get(key), value);
+      const i = find(key);
+      if (i < 0) return;
+      manual[i] = value === null || value === undefined ? null : Number(value);
       kick();
     },
-    setHighlights,
+    setHighlights(list) {
+      setHL(list);
+      kick();
+    },
     refresh() {
       measure();
       kick();
+    },
+    renderNow() {
+      pS = null;
+      render(performance.now());
     },
     destroy() {
       alive = false;
@@ -1025,8 +1089,11 @@ export function mountMexico({ canvas, section, data, isDark, captions = [], tool
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerleave', onLeave);
       canvas.removeEventListener('click', onClick);
-      const lose = gl.getExtension('WEBGL_lose_context');
-      if (lose) lose.loseContext();
+      canvas.style.cursor = '';
+      if (!canvas.isConnected) {
+        const lose = gl.getExtension('WEBGL_lose_context');
+        if (lose) lose.loseContext();
+      }
     },
   };
 }

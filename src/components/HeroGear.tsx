@@ -1,13 +1,17 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import type { GearScene } from './gear-scene';
 
-type GearScene = { refresh: () => void; destroy: () => void };
 type IdleWindow = Window & {
   requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
 };
 
-/** Lienzo del engrane 3D detrás del titular. Se carga después de hidratar para no afectar el LCP. */
+/**
+ * Lienzo del engrane 3D detrás del titular. Se carga después de hidratar para no afectar el LCP.
+ * Con la sección siguiente (#where) como portal, el lienzo queda fijo al hacer scroll: el engrane
+ * gira, su monitor se abre y por él se entra al mapa.
+ */
 export function HeroGear() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -27,6 +31,7 @@ export function HeroGear() {
           scene = mountGear({
             canvas,
             section,
+            portal: document.getElementById('where'),
             isDark: () => document.documentElement.classList.contains('dark'),
             reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
           });

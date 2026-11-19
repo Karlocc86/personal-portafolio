@@ -11,7 +11,7 @@
     "nav": {
       "about": "About",
       "tools": "Tools",
-      "education": "Education",
+      "portfolio": "Portfolio",
       "contact": "Contact"
     }
   },
@@ -20,15 +20,16 @@
   },
   "Hero": {
     "name": "Karlo Sebastián Cadena Cota",
-    "role": "Computer Science Student",
+    "role": "Computer Science and Technology (ITC) Student",
     "focus": "Full-stack development and AI-integrated systems",
-    "contact": "Contact"
+    "contact": "Contact",
+    "scroll": "Scroll"
   },
   "Where": {
     "label": "About me",
     "intro": {
       "title": "Hi, I’m Karlo.",
-      "body": "I study Computer Science and Technology and focus on full-stack development and systems that integrate artificial intelligence."
+      "body": "I study Computer Science and Technology (ITC) and focus on full-stack development and systems that integrate artificial intelligence."
     },
     "home": {
       "eyebrow": "Origin",
@@ -40,94 +41,186 @@
       "body": "Computer Science and Technology (ITC) at Tecnológico de Monterrey, Guadalajara campus. Expected graduation: July 2028."
     },
     "outro": {
-      "title": "From {town} to Guadalajara.",
-      "body": "I speak Spanish (native) and English (fluent)."
+      "title": "From {town} to Guadalajara."
     },
     "origin": "Origin",
     "school": "University",
-    "schoolDetail": "Tec de Monterrey · Guadalajara",
-    "hint": "Select a state to raise it."
+    "schoolDetail": "Tec de Monterrey · Guadalajara"
   },
   "Tools": {
     "title": "What I work with.",
     "lead": "The languages, frameworks and services I use to build applications end to end.",
-    "groups": {
-      "languages": {
-        "title": "Languages",
+    "layers": [
+      {
+        "title": "Interface",
+        "body": "What people see and use.",
         "items": [
-          "C++",
-          "Python",
           "TypeScript",
+          "React",
+          "Next.js",
+          "Vite",
+          "Chrome Extensions (MV3)"
+        ]
+      },
+      {
+        "title": "Logic",
+        "body": "Business rules, APIs and authentication.",
+        "items": [
+          "Auth.js",
+          "Python",
+          "REST APIs"
+        ]
+      },
+      {
+        "title": "Data",
+        "body": "Where information lives and who can read it.",
+        "items": [
+          "PostgreSQL",
+          "Prisma",
+          "Supabase (Auth, RLS)",
           "SQL"
         ]
       },
-      "web": {
-        "title": "Web & Backend",
+      {
+        "title": "Services",
+        "body": "Payments and language models.",
         "items": [
-          "React",
-          "Next.js",
-          "Node.js",
-          "PostgreSQL",
-          "Prisma",
-          "Auth.js",
-          "REST APIs",
-          "Tailwind CSS",
-          "Vite"
-        ]
-      },
-      "cloud": {
-        "title": "Cloud & Services",
-        "items": [
-          "Supabase (Auth, Row Level Security)",
           "Stripe",
-          "Vercel",
-          "GitHub Actions",
-          "Sentry",
-          "Gemini API"
+          "Ollama"
         ]
       },
-      "tools": {
-        "title": "Tools",
+      {
+        "title": "Delivery",
+        "body": "Version, test and deploy.",
         "items": [
-          "Git",
-          "GitHub",
-          "Linux",
+          "Git / GitHub",
+          "GitHub Actions",
           "Vitest",
-          "Android Studio",
-          "Chrome Extensions (MV3)"
+          "Vercel"
         ]
       }
-    }
+    ]
   },
-  "Education": {
-    "title": "Education and recognition.",
-    "education": {
-      "label": "Education",
-      "school": "Tecnológico de Monterrey",
-      "degree": "B.S. in Computer Science and Technology (ITC)",
-      "meta": "Guadalajara campus · Jul. 2028 (expected)",
-      "coursesLabel": "Relevant coursework",
-      "courses": [
-        "Fundamental Data Structures and Algorithms",
-        "Software Construction and Decision Making",
-        "Object-Oriented Programming",
-        "Databases",
-        "Internet of Things"
-      ]
+  "Projects": {
+    "title": "Portfolio.",
+    "lead": "Case studies of software I built and took to production: the problem, the technical decisions and the result.",
+    "labels": {
+      "how": "How it is built",
+      "result": "Result",
+      "visit": "View project",
+      "count": "case studies",
+      "problem": "Problem",
+      "github": "View on GitHub"
     },
-    "award": {
-      "label": "Recognition",
-      "title": "Gold medal (1st place)",
-      "event": "Baja California Sur State Physics Olympiad, 2022",
-      "description": "I was part of the four-person state delegation at the XXXIII National Physics Olympiad in Puebla."
-    }
+    "items": [
+      {
+        "eyebrow": "Case 01 · 2026",
+        "status": "In testing · rollout planned Dec 2026",
+        "name": "Cobranza",
+        "tagline": "Billing and reconciliation for a nonprofit therapy foundation.",
+        "problem": "The foundation tracked payments in spreadsheets, and keeping them in order had become unmanageable.",
+        "how": "I took over an unfinished prototype and rebuilt it. The billing logic (late fees, quarterly discounts, session packages and bank-transfer reconciliation) lives in tested functions. Auth.js separates the Admin, Staff and Accounting roles, and a test fails if any server action lacks declared permissions. A monthly cron job generates the charges.",
+        "result": "In internal testing; the foundation is expected to start using it in December 2026. Before launch, an audit with 78 attack tests found 14 vulnerabilities, all fixed.",
+        "metrics": [
+          {
+            "value": "78",
+            "label": "attack tests"
+          },
+          {
+            "value": "14",
+            "label": "vulnerabilities fixed"
+          },
+          {
+            "value": "200+",
+            "label": "Vitest tests"
+          },
+          {
+            "value": "10",
+            "label": "SQL migrations"
+          }
+        ],
+        "stack": [
+          "Next.js 16",
+          "React 19",
+          "TypeScript",
+          "Prisma",
+          "PostgreSQL (Supabase)",
+          "Auth.js",
+          "Vitest",
+          "GitHub Actions",
+          "Vercel"
+        ],
+        "link": null
+      },
+      {
+        "eyebrow": "Case 02 · 2026",
+        "status": "Built · pending launch",
+        "name": "Donativos Bomberos Todos Santos",
+        "tagline": "Bilingual donation platform for the volunteer fire department of my hometown.",
+        "problem": "The fire department needed a way to receive donations online.",
+        "how": "Stripe Elements with PaymentIntent for one-time and recurring donations in MXN, using signed webhooks and idempotent handling so records are never duplicated. Supabase PostgreSQL schema, an admin panel protected by Next.js middleware, and Spanish/English routes with next-intl. I scoped and prioritized features directly with the department's leadership.",
+        "result": "Finished and deployed to a test environment; launch is waiting on legal paperwork with the department.",
+        "metrics": [
+          {
+            "value": "ES / EN",
+            "label": "bilingual"
+          },
+          {
+            "value": "MXN",
+            "label": "one-time and recurring donations"
+          }
+        ],
+        "stack": [
+          "Next.js 16",
+          "TypeScript",
+          "Stripe",
+          "Supabase",
+          "next-intl",
+          "Vercel"
+        ],
+        "link": null
+      },
+      {
+        "eyebrow": "Case 03 · 2026",
+        "status": "Prototype · industry-partner challenge",
+        "name": "KueskiPay Credit Widget",
+        "tagline": "Chrome extension that surfaces buy-now-pay-later credit inside the store.",
+        "problem": "A Kueski challenge at Tec: show credit options right at the moment of purchase.",
+        "how": "Manifest V3 extension with a React 19 popup and content scripts that detect product and price on live retail pages. A 5-table Supabase schema with Row Level Security isolates each user's credit data and purchase history. An installment calculator adapts the plan to the credit score, and a price comparator checks several stores.",
+        "result": "Working prototype built for the challenge.",
+        "metrics": [
+          {
+            "value": "5",
+            "label": "tables with RLS"
+          },
+          {
+            "value": "MV3",
+            "label": "Chrome extension"
+          }
+        ],
+        "stack": [
+          "React 19",
+          "Vite",
+          "TypeScript",
+          "Supabase",
+          "Chrome Extensions (MV3)"
+        ],
+        "link": "https://github.com/Karlocc86/kueskipay-widget"
+      }
+    ]
   },
   "Contact": {
     "title": "Let’s talk.",
-    "lead": "The fastest way to reach me is by email. You can also find me on GitHub and LinkedIn."
+    "lead": "The fastest way to reach me is by email. You can also find me on GitHub and LinkedIn.",
+    "copy": "Copy email",
+    "copied": "Copied"
   },
   "Footer": {
-    "copyright": "© 2026 kscc.tech"
+    "copyright": "© 2026 kscc.tech",
+    "label": "Footer",
+    "home": "Home",
+    "social": "Social",
+    "top": "Back to top"
   },
   "NotFound": {
     "title": "This page doesn’t exist.",
