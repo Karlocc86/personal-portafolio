@@ -3,11 +3,11 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Galería horizontal del Portfolio: pantallas de al menos 1024 × 800, con movimiento y con JS
- * (clase `js` de themeScript). Si no, los paneles van apilados.
+ * Galería horizontal del Portfolio: pantallas de al menos 1024 × 720 (una ventana maximizada común),
+ * con movimiento y con JS (clase `js` de themeScript). Si no, los paneles van apilados.
  */
 @custom-variant hpin {
-  @media (min-width: 64rem) and (min-height: 50rem) and (prefers-reduced-motion: no-preference) {
+  @media (min-width: 64rem) and (min-height: 45rem) and (prefers-reduced-motion: no-preference) {
     :where(.js) & {
       @slot;
     }
