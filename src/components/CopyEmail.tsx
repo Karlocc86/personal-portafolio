@@ -25,7 +25,7 @@ export function CopyEmail({ email, label, copiedLabel }: { email: string; label:
       type="button"
       onClick={copy}
       aria-live="polite"
-      className="inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border border-line px-4 text-[15px] font-medium whitespace-nowrap text-ink transition-colors duration-300 ease-apple hover:bg-ink/[0.07]"
+      className="inline-flex h-10 flex-none cursor-pointer items-center justify-center rounded-lg border border-line px-4 text-[15px] font-medium whitespace-nowrap text-ink transition-colors duration-200 ease-apple hover:border-ink-muted hover:bg-[var(--seg)]"
     >
       {copied ? copiedLabel : label}
     </button>
