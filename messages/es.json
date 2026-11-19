@@ -38,48 +38,14 @@
     "move": {
       "eyebrow": "Hoy",
       "title": "Estudio en Guadalajara, Jalisco.",
-      "body": "Ingeniería en Tecnologías Computacionales (ITC) en el Tecnológico de Monterrey, campus Guadalajara. Graduación esperada en julio de 2028.",
-      "facts": [
-        {
-          "label": "Universidad",
-          "value": "Tecnológico de Monterrey, campus Guadalajara"
-        },
-        {
-          "label": "Carrera",
-          "value": "Ingeniería en Tecnologías Computacionales (ITC)"
-        },
-        {
-          "label": "Graduación",
-          "value": "Julio de 2028 (esperada)"
-        }
-      ]
+      "body": "Ingeniería en Tecnologías Computacionales (ITC) en el Tecnológico de Monterrey, campus Guadalajara. Graduación esperada en julio de 2028."
     },
     "outro": {
       "title": "De {town} a Guadalajara."
     },
     "origin": "Origen",
     "school": "Universidad",
-    "schoolDetail": "Tec de Monterrey · Guadalajara",
-    "chapters": [
-      "Hola",
-      "Origen",
-      "Hoy",
-      "Ruta"
-    ],
-    "building": "Edificio EIAD",
-    "buildingDetail": "Tec de Monterrey · Campus Guadalajara",
-    "map": {
-      "us": "Estados Unidos",
-      "gt": "Guatemala",
-      "pacific": "Océano Pacífico",
-      "gulf": "Golfo de México",
-      "gulfCa": "Golfo de California",
-      "tropic": "Trópico de Cáncer",
-      "jal": "Jalisco"
-    },
-    "hud": {
-      "west": "O"
-    }
+    "schoolDetail": "Tec de Monterrey · Guadalajara"
   },
   "Tools": {
     "title": "Con qué trabajo.",
@@ -142,11 +108,9 @@
       "how": "Cómo está hecho",
       "result": "Resultado",
       "visit": "Ver proyecto",
-      "shot": "Captura",
       "count": "casos de estudio",
       "problem": "Problema",
-      "github": "Ver en GitHub",
-      "drop": "Arrastra una captura"
+      "github": "Ver en GitHub"
     },
     "items": [
       {

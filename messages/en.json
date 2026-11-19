@@ -38,48 +38,14 @@
     "move": {
       "eyebrow": "Today",
       "title": "I study in Guadalajara, Jalisco.",
-      "body": "Computer Science and Technology (ITC) at Tecnológico de Monterrey, Guadalajara campus. Expected graduation: July 2028.",
-      "facts": [
-        {
-          "label": "University",
-          "value": "Tecnológico de Monterrey, Guadalajara campus"
-        },
-        {
-          "label": "Degree",
-          "value": "Computer Science and Technology (ITC)"
-        },
-        {
-          "label": "Graduation",
-          "value": "July 2028 (expected)"
-        }
-      ]
+      "body": "Computer Science and Technology (ITC) at Tecnológico de Monterrey, Guadalajara campus. Expected graduation: July 2028."
     },
     "outro": {
       "title": "From {town} to Guadalajara."
     },
     "origin": "Origin",
     "school": "University",
-    "schoolDetail": "Tec de Monterrey · Guadalajara",
-    "chapters": [
-      "Hello",
-      "Origin",
-      "Today",
-      "Route"
-    ],
-    "building": "EIAD Building",
-    "buildingDetail": "Tec de Monterrey · Guadalajara campus",
-    "map": {
-      "us": "United States",
-      "gt": "Guatemala",
-      "pacific": "Pacific Ocean",
-      "gulf": "Gulf of Mexico",
-      "gulfCa": "Gulf of California",
-      "tropic": "Tropic of Cancer",
-      "jal": "Jalisco"
-    },
-    "hud": {
-      "west": "W"
-    }
+    "schoolDetail": "Tec de Monterrey · Guadalajara"
   },
   "Tools": {
     "title": "What I work with.",
@@ -142,11 +108,9 @@
       "how": "How it is built",
       "result": "Result",
       "visit": "View project",
-      "shot": "Screenshot",
       "count": "case studies",
       "problem": "Problem",
-      "github": "View on GitHub",
-      "drop": "Drop a screenshot"
+      "github": "View on GitHub"
     },
     "items": [
       {

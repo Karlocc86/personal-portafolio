@@ -1,20 +1,6 @@
 import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import { ChevronRight } from './icons';
 
-export function Label({
-  as: Tag = 'p',
-  className = '',
-  children,
-}: {
-  as?: 'p' | 'h4' | 'dt';
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <Tag className={`font-mono text-[12px] uppercase tracking-[0.08em] text-ink-muted ${className}`}>{children}</Tag>
-  );
-}
-
 /** Atributos extra del enlace (por ejemplo `data-ch`, que usa el remolino del hero). */
 type AnchorProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href' | 'className' | 'children'>;
 
@@ -82,28 +68,6 @@ export function ChevronLink({
   );
 }
 
-export function Section({
-  id,
-  labelledBy,
-  tone = 'base',
-  children,
-}: {
-  id: string;
-  labelledBy: string;
-  tone?: 'base' | 'alt';
-  children: ReactNode;
-}) {
-  return (
-    <section
-      id={id}
-      aria-labelledby={labelledBy}
-      className={`${tone === 'alt' ? 'bg-canvas-alt' : 'bg-canvas'} px-6 py-24 sm:py-32 lg:py-36`}
-    >
-      <div className="mx-auto max-w-[1200px]">{children}</div>
-    </section>
-  );
-}
-
 export function SectionTitle({ id, children }: { id: string; children: ReactNode }) {
   return (
     <h2
@@ -115,6 +79,3 @@ export function SectionTitle({ id, children }: { id: string; children: ReactNode
     </h2>
   );
 }
-
-/** Retrasos escalonados para [data-reveal] (clases literales para que Tailwind las detecte). */
-export const REVEAL_DELAYS = ['[--delay:0ms]', '[--delay:80ms]', '[--delay:160ms]', '[--delay:240ms]'] as const;

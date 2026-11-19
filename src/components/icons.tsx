@@ -36,41 +36,6 @@ export function MoonIcon(props: IconProps) {
   );
 }
 
-export function CodeIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" strokeWidth={1.5} {...base} {...props}>
-      <path d="m8 7-5 5 5 5M16 7l5 5-5 5M13.5 4.5l-3 15" />
-    </svg>
-  );
-}
-
-export function LayersIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" strokeWidth={1.5} {...base} {...props}>
-      <path d="m12 3.5 8.5 4.5-8.5 4.5L3.5 8 12 3.5Z" />
-      <path d="m3.5 12 8.5 4.5 8.5-4.5" />
-      <path d="m3.5 16 8.5 4.5 8.5-4.5" />
-    </svg>
-  );
-}
-
-export function CloudIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" strokeWidth={1.5} {...base} {...props}>
-      <path d="M7 18.5a4.5 4.5 0 0 1-.4-9A6 6 0 0 1 18 8.6a5 5 0 0 1-.5 9.9H7Z" />
-    </svg>
-  );
-}
-
-export function TerminalIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" strokeWidth={1.5} {...base} {...props}>
-      <rect x="3" y="4.5" width="18" height="15" rx="3.5" />
-      <path d="m7.5 10 2.5 2-2.5 2M12.5 14.5h4" />
-    </svg>
-  );
-}
-
 export function ChevronDown(props: IconProps) {
   return (
     <svg viewBox="0 0 12 12" strokeWidth={1.6} {...base} {...props}>
