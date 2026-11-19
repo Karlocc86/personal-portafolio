@@ -5,6 +5,21 @@
 /* Galería horizontal del Portfolio: pantallas anchas y altas, con movimiento. */
 @custom-variant hpin (@media (min-width: 48rem) and (min-height: 40rem) and (prefers-reduced-motion: no-preference));
 
+/*
+ * Secciones fijas que anima scroll-fx.js (Herramientas): solo con movimiento y con JS (clase `js`
+ * de themeScript). Sin JS o con movimiento reducido quedan estáticas y abiertas.
+ */
+@custom-variant fx {
+  @media (prefers-reduced-motion: no-preference) {
+    :where(.js) & {
+      @slot;
+    }
+  }
+}
+
+/* Pantallas de al menos 640 px de alto. */
+@custom-variant tall (@media (min-height: 40rem));
+
 @theme {
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   --ease-apple: cubic-bezier(0.25, 0.1, 0.25, 1);
