@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import { ChevronRight } from './icons';
 
 export function Label({
@@ -15,11 +15,15 @@ export function Label({
   );
 }
 
-export function PrimaryButton({ href, children }: { href: string; children: ReactNode }) {
+/** Atributos extra del enlace (por ejemplo `data-ch`, que usa el remolino del hero). */
+type AnchorProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href' | 'className' | 'children'>;
+
+export function PrimaryButton({ href, children, ...rest }: { href: string; children: ReactNode } & AnchorProps) {
   return (
     <a
       href={href}
-      className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-ink px-4 text-[15px] font-medium text-canvas transition-opacity duration-300 ease-apple hover:opacity-85"
+      {...rest}
+      className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-ink px-4 text-[15px] font-medium text-canvas transition-opacity duration-200 ease-apple hover:opacity-85"
     >
       {children}
       <ChevronRight className="size-3" />
@@ -32,17 +36,19 @@ export function OutlineButton({
   children,
   external = false,
   newTabLabel,
+  ...rest
 }: {
   href: string;
   children: ReactNode;
   external?: boolean;
   newTabLabel?: string;
-}) {
+} & AnchorProps) {
   return (
     <a
       href={href}
       {...(external ? { target: '_blank', rel: 'me noopener noreferrer' } : {})}
-      className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-line px-4 text-[15px] font-medium text-ink transition-colors duration-300 ease-apple hover:bg-ink/[0.07]"
+      {...rest}
+      className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-line px-4 text-[15px] font-medium text-ink transition-colors duration-200 ease-apple hover:bg-[var(--seg)]"
     >
       {children}
       {external && newTabLabel ? <span className="sr-only">{newTabLabel}</span> : null}
