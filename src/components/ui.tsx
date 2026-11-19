@@ -93,7 +93,7 @@ export function Section({
       aria-labelledby={labelledBy}
       className={`${tone === 'alt' ? 'bg-canvas-alt' : 'bg-canvas'} px-6 py-24 sm:py-32 lg:py-36`}
     >
-      <div className="mx-auto max-w-[980px]">{children}</div>
+      <div className="mx-auto max-w-[1200px]">{children}</div>
     </section>
   );
 }

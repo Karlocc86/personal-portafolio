@@ -11,7 +11,7 @@
     "nav": {
       "about": "Sobre mí",
       "tools": "Herramientas",
-      "education": "Educación",
+      "portfolio": "Portafolio",
       "contact": "Contacto"
     }
   },
@@ -20,15 +20,16 @@
   },
   "Hero": {
     "name": "Karlo Sebastián Cadena Cota",
-    "role": "Estudiante de Ciencias de la Computación",
+    "role": "Estudiante de Ingeniería en Tecnologías Computacionales (ITC)",
     "focus": "Desarrollo full-stack y sistemas integrados con IA",
-    "contact": "Contacto"
+    "contact": "Contacto",
+    "scroll": "Desliza"
   },
   "Where": {
     "label": "Sobre mí",
     "intro": {
       "title": "Hola, soy Karlo.",
-      "body": "Estudio Ciencias de la Computación y Tecnología y me enfoco en el desarrollo full-stack y en sistemas que integran inteligencia artificial."
+      "body": "Estudio Ingeniería en Tecnologías Computacionales (ITC) y me enfoco en el desarrollo full-stack y en sistemas que integran inteligencia artificial."
     },
     "home": {
       "eyebrow": "Origen",
@@ -37,97 +38,225 @@
     "move": {
       "eyebrow": "Hoy",
       "title": "Estudio en Guadalajara, Jalisco.",
-      "body": "Ciencias de la Computación y Tecnología (ITC) en el Tecnológico de Monterrey, campus Guadalajara. Graduación esperada en julio de 2028."
+      "body": "Ingeniería en Tecnologías Computacionales (ITC) en el Tecnológico de Monterrey, campus Guadalajara. Graduación esperada en julio de 2028.",
+      "facts": [
+        {
+          "label": "Universidad",
+          "value": "Tecnológico de Monterrey, campus Guadalajara"
+        },
+        {
+          "label": "Carrera",
+          "value": "Ingeniería en Tecnologías Computacionales (ITC)"
+        },
+        {
+          "label": "Graduación",
+          "value": "Julio de 2028 (esperada)"
+        }
+      ]
     },
     "outro": {
-      "title": "De {town} a Guadalajara.",
-      "body": "Hablo español (nativo) e inglés (fluido)."
+      "title": "De {town} a Guadalajara."
     },
     "origin": "Origen",
     "school": "Universidad",
     "schoolDetail": "Tec de Monterrey · Guadalajara",
-    "hint": "Selecciona un estado para alzarlo."
+    "chapters": [
+      "Hola",
+      "Origen",
+      "Hoy",
+      "Ruta"
+    ],
+    "building": "Edificio EIAD",
+    "buildingDetail": "Tec de Monterrey · Campus Guadalajara",
+    "map": {
+      "us": "Estados Unidos",
+      "gt": "Guatemala",
+      "pacific": "Océano Pacífico",
+      "gulf": "Golfo de México",
+      "gulfCa": "Golfo de California",
+      "tropic": "Trópico de Cáncer",
+      "jal": "Jalisco"
+    },
+    "hud": {
+      "west": "O"
+    }
   },
   "Tools": {
     "title": "Con qué trabajo.",
     "lead": "Lenguajes, frameworks y servicios con los que construyo aplicaciones de principio a fin.",
-    "groups": {
-      "languages": {
-        "title": "Lenguajes",
+    "layers": [
+      {
+        "title": "Interfaz",
+        "body": "Lo que la gente ve y usa.",
         "items": [
-          "C++",
-          "Python",
           "TypeScript",
+          "React",
+          "Next.js",
+          "Vite",
+          "Chrome Extensions (MV3)"
+        ]
+      },
+      {
+        "title": "Lógica",
+        "body": "Reglas del negocio, APIs y autenticación.",
+        "items": [
+          "Auth.js",
+          "Python",
+          "REST APIs"
+        ]
+      },
+      {
+        "title": "Datos",
+        "body": "Dónde vive la información y quién puede leerla.",
+        "items": [
+          "PostgreSQL",
+          "Prisma",
+          "Supabase (Auth, RLS)",
           "SQL"
         ]
       },
-      "web": {
-        "title": "Web y Backend",
+      {
+        "title": "Servicios",
+        "body": "Pagos y modelos de lenguaje.",
         "items": [
-          "React",
-          "Next.js",
-          "Node.js",
-          "PostgreSQL",
-          "Prisma",
-          "Auth.js",
-          "REST APIs",
-          "Tailwind CSS",
-          "Vite"
-        ]
-      },
-      "cloud": {
-        "title": "Cloud y Servicios",
-        "items": [
-          "Supabase (Auth, Row Level Security)",
           "Stripe",
-          "Vercel",
-          "GitHub Actions",
-          "Sentry",
-          "Gemini API"
+          "Ollama"
         ]
       },
-      "tools": {
-        "title": "Herramientas",
+      {
+        "title": "Entrega",
+        "body": "Versionar, probar y desplegar.",
         "items": [
-          "Git",
-          "GitHub",
-          "Linux",
+          "Git / GitHub",
+          "GitHub Actions",
           "Vitest",
-          "Android Studio",
-          "Chrome Extensions (MV3)"
+          "Vercel"
         ]
       }
-    }
+    ]
   },
-  "Education": {
-    "title": "Educación y reconocimiento.",
-    "education": {
-      "label": "Educación",
-      "school": "Tecnológico de Monterrey",
-      "degree": "B.S. en Computer Science and Technology (ITC)",
-      "meta": "Campus Guadalajara · jul. 2028 (esperado)",
-      "coursesLabel": "Materias relevantes",
-      "courses": [
-        "Estructuras de Datos y Algoritmos Fundamentales",
-        "Construcción de Software y Toma de Decisiones",
-        "Programación Orientada a Objetos",
-        "Bases de Datos",
-        "Internet de las Cosas"
-      ]
+  "Projects": {
+    "title": "Portafolio.",
+    "lead": "Casos de estudio de software que construí y llevé a producción: el problema, las decisiones técnicas y el resultado.",
+    "labels": {
+      "how": "Cómo está hecho",
+      "result": "Resultado",
+      "visit": "Ver proyecto",
+      "shot": "Captura",
+      "count": "casos de estudio",
+      "problem": "Problema",
+      "github": "Ver en GitHub",
+      "drop": "Arrastra una captura"
     },
-    "award": {
-      "label": "Reconocimiento",
-      "title": "Medalla de oro (1er lugar)",
-      "event": "Olimpiada Estatal de Física de Baja California Sur, 2022",
-      "description": "Integré la delegación estatal de cuatro personas en la XXXIII Olimpiada Nacional de Física en Puebla."
-    }
+    "items": [
+      {
+        "eyebrow": "Caso 01 · 2026",
+        "status": "En pruebas · arranque previsto dic. 2026",
+        "name": "Cobranza",
+        "tagline": "Cobros y conciliación para una fundación de terapias.",
+        "problem": "La fundación llevaba los cobros en hojas de Excel y el control se había vuelto un desorden.",
+        "how": "Retomé un prototipo incompleto y lo reconstruí. La lógica de cobro (mora, descuentos trimestrales, paquetes de sesiones y conciliación de transferencias) vive en funciones con pruebas. Auth.js separa los roles Admin, Staff y Contabilidad, y una prueba falla si alguna acción del servidor queda sin permisos declarados. Un cron mensual genera los cargos.",
+        "result": "En pruebas internas; la fundación empezaría a usarlo en diciembre de 2026. Antes de lanzar, una auditoría con 78 pruebas de ataque encontró 14 vulnerabilidades, todas corregidas.",
+        "metrics": [
+          {
+            "value": "78",
+            "label": "pruebas de ataque"
+          },
+          {
+            "value": "14",
+            "label": "vulnerabilidades corregidas"
+          },
+          {
+            "value": "200+",
+            "label": "pruebas Vitest"
+          },
+          {
+            "value": "10",
+            "label": "migraciones SQL"
+          }
+        ],
+        "stack": [
+          "Next.js 16",
+          "React 19",
+          "TypeScript",
+          "Prisma",
+          "PostgreSQL (Supabase)",
+          "Auth.js",
+          "Vitest",
+          "GitHub Actions",
+          "Vercel"
+        ],
+        "link": null
+      },
+      {
+        "eyebrow": "Caso 02 · 2026",
+        "status": "Construida · pendiente de lanzamiento",
+        "name": "Donativos Bomberos Todos Santos",
+        "tagline": "Plataforma bilingüe de donativos para el patronato de bomberos voluntarios de mi pueblo.",
+        "problem": "El patronato necesitaba una forma de recibir donativos en línea.",
+        "how": "Stripe Elements con PaymentIntent para donativos únicos y recurrentes en pesos, con webhooks firmados y manejo idempotente para no duplicar registros. Esquema en Supabase PostgreSQL, panel de administración protegido con middleware de Next.js y rutas en español e inglés con next-intl. Definí y prioricé las funciones directamente con la directiva.",
+        "result": "Terminada y desplegada en un entorno de pruebas; el lanzamiento espera a que se resuelvan trámites legales con el patronato.",
+        "metrics": [
+          {
+            "value": "ES / EN",
+            "label": "bilingüe"
+          },
+          {
+            "value": "MXN",
+            "label": "donativos únicos y recurrentes"
+          }
+        ],
+        "stack": [
+          "Next.js 16",
+          "TypeScript",
+          "Stripe",
+          "Supabase",
+          "next-intl",
+          "Vercel"
+        ],
+        "link": null
+      },
+      {
+        "eyebrow": "Caso 03 · 2026",
+        "status": "Prototipo · reto con socio industrial",
+        "name": "KueskiPay Credit Widget",
+        "tagline": "Extensión de Chrome que muestra crédito «compra ahora, paga después» dentro de la tienda.",
+        "problem": "Reto de Kueski en el Tec: mostrar opciones de crédito justo en el momento de la compra.",
+        "how": "Extensión Manifest V3 con popup en React 19 y content scripts que detectan producto y precio en páginas reales. Esquema de 5 tablas en Supabase con Row Level Security que aísla los datos de crédito y compras de cada usuario. Un calculador de pagos adapta el plan al puntaje crediticio y un comparador de precios revisa varias tiendas.",
+        "result": "Prototipo funcional desarrollado para el reto.",
+        "metrics": [
+          {
+            "value": "5",
+            "label": "tablas con RLS"
+          },
+          {
+            "value": "MV3",
+            "label": "extensión de Chrome"
+          }
+        ],
+        "stack": [
+          "React 19",
+          "Vite",
+          "TypeScript",
+          "Supabase",
+          "Chrome Extensions (MV3)"
+        ],
+        "link": "https://github.com/Karlocc86/kueskipay-widget"
+      }
+    ]
   },
   "Contact": {
     "title": "Hablemos.",
-    "lead": "La forma más rápida de contactarme es por correo. También me encuentras en GitHub y LinkedIn."
+    "lead": "La forma más rápida de contactarme es por correo. También me encuentras en GitHub y LinkedIn.",
+    "copy": "Copiar correo",
+    "copied": "Copiado"
   },
   "Footer": {
-    "copyright": "© 2026 kscc.tech"
+    "copyright": "© 2026 kscc.tech",
+    "label": "Pie de página",
+    "home": "Inicio",
+    "social": "Redes",
+    "top": "Volver arriba"
   },
   "NotFound": {
     "title": "Esta página no existe.",

@@ -34,32 +34,53 @@ src/
     [locale]/not-found.tsx  404 localizado
     sitemap.ts, robots.ts   /sitemap.xml y /robots.txt
     icon.svg, favicon.ico, apple-icon.png
-  components/               Header, Hero, About, Tools, Education, Contact, Footer…
+  components/               Header, Hero (+ HeroGear), Where (+ MexicoMap), Tools, Portfolio, Contact, Footer…
+public/geo/                 Geometría del mapa de México
 ```
 
 ## Editar contenido
 
-- **Textos:** `messages/es.json` y `messages/en.json` (mantén las mismas claves en ambos). Las frases entre `<strong>…</strong>` de la bio se resaltan.
-- **Herramientas:** `Tools.groups.*.items`. Un detalle entre paréntesis, por ejemplo `Supabase (Auth, Row Level Security)`, se muestra en gris dentro de la píldora.
+- **Textos:** `messages/es.json` y `messages/en.json` (mantén las mismas claves en ambos).
+- **Herramientas:** `Tools.groups.*.items`. Un detalle entre paréntesis, por ejemplo `Supabase (Auth, Row Level Security)`, se muestra atenuado dentro del bloque.
 - **Correo y redes:** `src/lib/site.ts`.
 - **Tema predeterminado:** `DEFAULT_THEME` en `src/lib/site.ts` (`'dark'` o `'light'`). La elección del visitante se guarda en `localStorage`.
 - **Idioma:** el visitante que entra a `/` va al idioma de su navegador; si no es español ni inglés, a `/es`. Para mandar siempre a `/es`, agrega `localeDetection: false` en `src/i18n/routing.ts`.
 
-## Engrane 3D del hero
+## Hero: engrane 3D y portal
 
-- `src/components/gear-scene.js`: modelo y render en WebGL puro (sin three.js ni otras dependencias), basado en el icono de engrane con monitor `< >`.
+- `src/components/gear-scene.js`: modelo y render en WebGL puro (sin three.js ni otras dependencias), basado en el icono de engrane con monitor `< >`. Sus tipos están en `gear-scene.d.ts`.
 - `src/components/HeroGear.tsx`: carga la escena cuando el navegador está libre, después del primer pintado, para no afectar el LCP.
-- El engrane queda detrás del titular. Al hacer scroll gira y baja más lento que el contenido (parallax) mientras se atenúa.
-- Con `prefers-reduced-motion` queda quieto. Sin WebGL, simplemente no aparece.
+- El engrane queda detrás del titular y se inclina levemente hacia el cursor.
+- Portal hacia “Sobre mí”: al bajar, el lienzo queda fijo en pantalla, el engrane gira sobre su eje y se centra, la pantalla del monitor se abre con México dentro y la cámara entra por ella hasta el mapa. Para eso `HeroGear` le pasa a la escena la sección siguiente (`#where`) y el hero lleva `z-[2]`.
+- Con `prefers-reduced-motion` no hay portal y el engrane queda quieto. Sin WebGL, simplemente no aparece.
 - Para quitarlo: borra `<HeroGear />` en `Hero.tsx`.
 
 ## Sobre mí: mapa 3D de México narrado
 
-- `src/components/mexico-scene.js`: WebGL puro. Cada estado es un prisma extruido cuya altura se anima por separado. Para alzar un estado desde código: `scene.setHeight('MX-SON', 0.1)`.
+- `src/components/mexico-scene.js`: WebGL puro. Cada estado es un prisma extruido cuya altura se anima por separado. Para alzar un estado desde código: `scene.setHeight('MX-SON', 0.1)`. Sus tipos están en `mexico-scene.d.ts`.
 - `public/geo/mexico-states.json` (49 KB): límites estatales de Natural Earth (vía `angelnmara/geojson`), proyectados en Mercator, simplificados y triangulados de antemano.
 - Estados destacados (origen y universidad): `originState` y `schoolState` en `src/lib/site.ts`.
-- La sección “Sobre mí” (`Where.tsx`, `#about`) narra el recorrido en cuatro textos (`Where.*` en `messages/*.json`), cada uno visible en su tramo de scroll (`captions` en `MexicoMap.tsx`). En pantallas anchas los textos del medio van a la izquierda y la cámara recorre el sujeto a la derecha.
-- Recorrido con el scroll (sección de 600svh, escenario sticky; fases en `TL` de `mexico-scene.js`): zoom-in a México → zoom a Todos Santos (BCS, `hometown` en `site.ts`), donde se arma pieza por pieza (estilo LEGO) una cabaña de playa con terraza, palmeras y mar al frente → la cámara se aleja y sigue a un avión que vuela hasta Guadalajara dejando la ruta trazada → Jalisco se alza y la cámara vuelve al mapa completo. Hover muestra el nombre del estado; clic lo alza.
+- La sección es `Where.tsx` (`#where`). El enlace “Sobre mí” apunta a `#about`, un ancla dentro de la sección donde México ya llena la pantalla. El recorrido se narra en cuatro textos (`Where.*` en `messages/*.json`), cada uno visible en su tramo de scroll. Esos tramos, las cuatro barras de progreso y el momento en que se alza cada estado salen de `CHAPTERS` en `mexico-scene.js`.
+- En pantallas anchas y apaisadas los textos del medio van a la izquierda, sobre un velo que les da contraste, y la cámara recorre el sujeto a la derecha. En el resto van arriba y centrados.
+- Recorrido con el scroll (sección de 700svh, escenario sticky; fases en `TL` de `mexico-scene.js`): México aparece dentro del monitor del engrane → zoom-in al mapa → zoom a Todos Santos (BCS, `hometown` en `site.ts`), donde se arma pieza por pieza (estilo LEGO) una cabaña de playa con terraza, palmeras y mar al frente → la cámara se aleja y sigue a un avión que vuela hasta Guadalajara dejando la ruta trazada → Jalisco se alza, se arma el campus y la cámara vuelve al mapa completo. Hover muestra el nombre del estado; clic lo alza.
+- Con `prefers-reduced-motion` la sección no se ancla: los cuatro textos quedan apilados y debajo va el mapa en su vista final.
+
+## Herramientas: la pila por capas
+
+- `Tools.tsx`: “Con qué trabajo” como una pila isométrica de cinco capas (Interfaz, Lógica, Datos, Servicios, Entrega). La sección mide 380svh y su escenario queda fijo: al entrar, la pila se inclina; al bajar, las capas se separan y se enciende una a la vez mientras la lista muestra sus herramientas. Cada fila de la lista lleva el scroll a su capa.
+- El contenido vive en `Tools.layers` de `messages/*.json` (título, descripción y herramientas de cada capa).
+- Sin JavaScript o con `prefers-reduced-motion`, todas las capas quedan abiertas.
+
+## Portfolio
+
+- `Portfolio.tsx`: en pantallas de al menos 768 × 640 px la sección se fija y el scroll vertical recorre una galería horizontal: una portada y un panel por proyecto (resumen, cómo está hecho, resultado, cifras, stack, enlace y captura). Con menos espacio o con movimiento reducido, los paneles se apilan. La variante `hpin` de Tailwind (`globals.css`) define cuándo hay galería.
+- **Los dos proyectos incluidos (Turnos y Apunta) son de ejemplo: nombres, textos, cifras y dominios son inventados.** Sustitúyelos en `Projects.items` de `messages/es.json` y `messages/en.json`.
+- Captura: deja la imagen en `public/projects/` y pon su ruta en `image` (por ejemplo `"/projects/turnos.webp"`, proporción 4:3). Vacío muestra un marcador.
+
+## Transiciones entre secciones
+
+- Hero → Sobre mí: el texto no se va hacia arriba; queda fijo y cada letra cae girando en la pantalla del engrane, que luego se abre como portal hacia el mapa. Sobre mí → Herramientas: la pila se inclina al entrar. Portfolio: galería horizontal con parallax y capturas que se descubren. Contacto: el correo se “teclea”.
+- `scroll-fx.js` (sin dependencias; tipos en `scroll-fx.d.ts`) publica `--live`, `--in` y `--p` en cada `[data-pin]` y anima la salida del hero; lo monta `ScrollFx.tsx`. El engrane lo monta `HeroGear.tsx` y el mapa `MexicoMap.tsx`.
 
 ## Desplegar en Vercel
 

@@ -4,7 +4,7 @@ import { routing } from '@/i18n/routing';
 import { HeaderShell } from './HeaderShell';
 import { ThemeToggle } from './ThemeToggle';
 
-const SECTIONS = ['about', 'tools', 'education', 'contact'] as const;
+const SECTIONS = ['about', 'tools', 'portfolio', 'contact'] as const;
 const LANGUAGE_NAMES: Record<string, string> = { es: 'Español', en: 'English' };
 
 export function Header() {
@@ -40,7 +40,8 @@ export function Header() {
               <li key={id}>
                 <a
                   href={`#${id}`}
-                  className="text-[13px] font-medium text-ink/80 transition-colors duration-300 ease-apple hover:text-ink"
+                  data-nav={id}
+                  className="text-[13px] font-medium text-ink-muted transition-colors duration-300 ease-apple hover:text-ink aria-[current=true]:text-ink"
                 >
                   {t(`nav.${id}`)}
                 </a>
